@@ -610,6 +610,12 @@ static int __init cpufreq_gov_dbs_init(void)
 		return -EFAULT;
 	}
 
+	dbs_wq = alloc_workqueue("conservative_dbs_wq", WQ_HIGHPRI, 0);
+	if (!dbs_wq) {
+		printk(KERN_ERR "Failed to create conservative_dbs_wq workqueue\n");
+		return -EFAULT;
+	}
+
 	return cpufreq_register_governor(&cpufreq_gov_conservative);
 }
 
