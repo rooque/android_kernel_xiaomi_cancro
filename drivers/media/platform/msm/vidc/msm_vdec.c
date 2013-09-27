@@ -213,6 +213,7 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 		.minimum = V4L2_MPEG_VIDC_EXTRADATA_NONE,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO,
 =======
 		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP,
@@ -220,6 +221,9 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 =======
 		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO,
 >>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
+=======
+		.maximum = V4L2_MPEG_VIDC_EXTRADATA_STREAM_USERDATA,
+>>>>>>> d675a0c... msm: vidc: Add AFD and CC metadata support to extradata
 		.default_value = V4L2_MPEG_VIDC_EXTRADATA_NONE,
 		.menu_skip_mask = ~(
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_NONE) |
@@ -232,8 +236,6 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_RATE) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_PANSCAN_WINDOW) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_RECOVERY_POINT_SEI) |
-			(1 << V4L2_MPEG_VIDC_EXTRADATA_CLOSED_CAPTION_UD) |
-			(1 << V4L2_MPEG_VIDC_EXTRADATA_AFD_UD) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_MULTISLICE_INFO) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_NUM_CONCEALED_MB) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_METADATA_FILLER) |
@@ -250,8 +252,13 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
 =======
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP) |
+<<<<<<< HEAD
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO)
 >>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
+=======
+			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO) |
+			(1 << V4L2_MPEG_VIDC_EXTRADATA_STREAM_USERDATA)
+>>>>>>> d675a0c... msm: vidc: Add AFD and CC metadata support to extradata
 			),
 		.qmenu = mpeg_video_vidc_extradata,
 		.step = 0,

@@ -91,8 +91,6 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_FRAME_RATE,
 	HAL_EXTRADATA_PANSCAN_WINDOW,
 	HAL_EXTRADATA_RECOVERY_POINT_SEI,
-	HAL_EXTRADATA_CLOSED_CAPTION_UD,
-	HAL_EXTRADATA_AFD_UD,
 	HAL_EXTRADATA_MULTISLICE_INFO,
 	HAL_EXTRADATA_INDEX,
 	HAL_EXTRADATA_NUM_CONCEALED_MB,
@@ -108,11 +106,15 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_LTR_INFO,
 	HAL_EXTRADATA_METADATA_MBI,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	HAL_EXTRADATA_LTR_INFO,
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
 =======
 >>>>>>> 4122c76... msm: vidc: Add support for MBI extradata
+=======
+	HAL_EXTRADATA_STREAM_USERDATA,
+>>>>>>> d675a0c... msm: vidc: Add AFD and CC metadata support to extradata
 };
 
 enum hal_property {
