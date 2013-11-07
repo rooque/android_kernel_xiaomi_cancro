@@ -176,12 +176,18 @@ struct msm_vidc_frame_qp_payload {
 	unsigned int frame_qp;
 };
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 struct msm_vidc_frame_bits_info_payload {
 	unsigned int frame_bits;
 	unsigned int header_bits;
 };
+<<<<<<< HEAD
 =======
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 
 enum msm_vidc_extradata_type {
 	EXTRADATA_NONE = 0x00000000,
@@ -197,9 +203,13 @@ enum msm_vidc_extradata_type {
 	EXTRADATA_MPEG2_SEQDISP = 0x0000000D,
 	EXTRADATA_FRAME_QP = 0x0000000F,
 <<<<<<< HEAD
+<<<<<<< HEAD
 	EXTRADATA_FRAME_BITS_INFO = 0x00000010,
 =======
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+	EXTRADATA_FRAME_BITS_INFO = 0x00000010,
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 	EXTRADATA_MULTISLICE_INFO = 0x7F100000,
 	EXTRADATA_NUM_CONCEALED_MB = 0x7F100001,
 	EXTRADATA_INDEX = 0x7F100002,

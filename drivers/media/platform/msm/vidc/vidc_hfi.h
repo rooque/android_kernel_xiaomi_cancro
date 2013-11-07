@@ -84,9 +84,13 @@
 #define HFI_EXTRADATA_MPEG2_SEQDISP		0x0000000D
 #define HFI_EXTRADATA_FRAME_QP			0x0000000F
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define HFI_EXTRADATA_FRAME_BITS_INFO		0x00000010
 =======
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+#define HFI_EXTRADATA_FRAME_BITS_INFO		0x00000010
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 #define HFI_EXTRADATA_MULTISLICE_INFO		0x7F100000
 #define HFI_EXTRADATA_NUM_CONCEALED_MB		0x7F100001
 #define HFI_EXTRADATA_INDEX					0x7F100002
@@ -212,10 +216,15 @@ struct hfi_extradata_header {
 #define HFI_PROPERTY_PARAM_VDEC_FRAME_QP_EXTRADATA \
 	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x018)
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define HFI_PROPERTY_PARAM_VDEC_FRAME_BITS_INFO_EXTRADATA \
 	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x019)
 =======
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+#define HFI_PROPERTY_PARAM_VDEC_FRAME_BITS_INFO_EXTRADATA \
+	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x019)
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 
 #define HFI_PROPERTY_CONFIG_VDEC_OX_START				\
 	(HFI_DOMAIN_BASE_VDEC + HFI_ARCH_OX_OFFSET + 0x0000)

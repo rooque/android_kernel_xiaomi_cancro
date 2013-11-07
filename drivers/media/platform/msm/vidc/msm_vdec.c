@@ -212,10 +212,14 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 		.type = V4L2_CTRL_TYPE_MENU,
 		.minimum = V4L2_MPEG_VIDC_EXTRADATA_NONE,
 <<<<<<< HEAD
+<<<<<<< HEAD
 		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO,
 =======
 		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP,
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+		.maximum = V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO,
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 		.default_value = V4L2_MPEG_VIDC_EXTRADATA_NONE,
 		.menu_skip_mask = ~(
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_NONE) |
@@ -238,11 +242,16 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 			(1 << V4L2_MPEG_VIDC_INDEX_EXTRADATA_ASPECT_RATIO) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_MPEG2_SEQDISP) |
 <<<<<<< HEAD
+<<<<<<< HEAD
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP) |
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO)
 =======
 			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP)
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_QP) |
+			(1 << V4L2_MPEG_VIDC_EXTRADATA_FRAME_BITS_INFO)
+>>>>>>> ca3855f... msm: vidc: Add support to request frame bits info as extra-data
 			),
 		.qmenu = mpeg_video_vidc_extradata,
 		.step = 0,
