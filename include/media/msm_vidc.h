@@ -175,10 +175,13 @@ struct msm_vidc_s3d_frame_packing_payload {
 struct msm_vidc_frame_qp_payload {
 	unsigned int frame_qp;
 };
+<<<<<<< HEAD
 struct msm_vidc_frame_bits_info_payload {
 	unsigned int frame_bits;
 	unsigned int header_bits;
 };
+=======
+>>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
 
 enum msm_vidc_extradata_type {
 	EXTRADATA_NONE = 0x00000000,
@@ -193,7 +196,10 @@ enum msm_vidc_extradata_type {
 	EXTRADATA_RECOVERY_POINT_SEI = 0x00000009,
 	EXTRADATA_MPEG2_SEQDISP = 0x0000000D,
 	EXTRADATA_FRAME_QP = 0x0000000F,
+<<<<<<< HEAD
 	EXTRADATA_FRAME_BITS_INFO = 0x00000010,
+=======
+>>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
 	EXTRADATA_MULTISLICE_INFO = 0x7F100000,
 	EXTRADATA_NUM_CONCEALED_MB = 0x7F100001,
 	EXTRADATA_INDEX = 0x7F100002,
