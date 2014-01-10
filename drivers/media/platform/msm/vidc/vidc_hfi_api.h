@@ -107,9 +107,12 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_FRAME_BITS_INFO,
 	HAL_EXTRADATA_LTR_INFO,
 	HAL_EXTRADATA_METADATA_MBI,
+<<<<<<< HEAD
 =======
 	HAL_EXTRADATA_LTR_INFO,
 >>>>>>> 3e26add... msm: vidc: Add support to request frame level QP information
+=======
+>>>>>>> 4122c76... msm: vidc: Add support for MBI extradata
 };
 
 enum hal_property {
