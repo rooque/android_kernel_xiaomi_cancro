@@ -1479,14 +1479,22 @@ int create_pkt_cmd_session_set_property(
 		pr_err("MARK LTR\n");
 		break;
 	}
+<<<<<<< HEAD
 	case HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS:
 	{
 		pkt->rg_property_data[0] =
 			HFI_PROPERTY_PARAM_VENC_HIER_P_MAX_NUM_ENH_LAYER;
+=======
+	case HAL_PARAM_VENC_HIER_P_NUM_FRAMES:
+	{
+		pkt->rg_property_data[0] =
+			HFI_PROPERTY_PARAM_VENC_HIER_P_NUM_ENH_LAYER;
+>>>>>>> 84425c7... msm: vidc: add control to enable Hierarchical P num layers
 		pkt->rg_property_data[1] = *(u32 *)pdata;
 		pkt->size += sizeof(u32) * 2;
 		break;
 	}
+<<<<<<< HEAD
 	case HAL_CONFIG_VENC_HIER_P_NUM_FRAMES:
 	{
 		pkt->rg_property_data[0] =
@@ -1509,6 +1517,8 @@ int create_pkt_cmd_session_set_property(
 		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
 		break;
 	}
+=======
+>>>>>>> 84425c7... msm: vidc: add control to enable Hierarchical P num layers
 	/* FOLLOWING PROPERTIES ARE NOT IMPLEMENTED IN CORE YET */
 	case HAL_CONFIG_BUFFER_REQUIREMENTS:
 	case HAL_CONFIG_PRIORITY:
