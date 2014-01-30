@@ -751,6 +751,7 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 		.default_value = 0,
 		.step = 1,
 		.qmenu = NULL,
+		.cluster = 0,
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDC_VIDEO_LTRCOUNT,
@@ -900,24 +901,23 @@ static int msm_venc_queue_setup(struct vb2_queue *q,
 			*num_buffers = buff_req->buffer_count_actual =
 			max(*num_buffers, buff_req->buffer_count_actual);
 		}
+		if (*num_buffers < MIN_NUM_CAPTURE_BUFFERS)
+			*num_buffers = MIN_NUM_CAPTURE_BUFFERS;
 
-		if (*num_buffers < MIN_NUM_CAPTURE_BUFFERS ||
-				*num_buffers > VIDEO_MAX_FRAME) {
-			int temp = *num_buffers;
-
-			*num_buffers = clamp_val(*num_buffers,
-					MIN_NUM_CAPTURE_BUFFERS,
-					VIDEO_MAX_FRAME);
-			dprintk(VIDC_INFO,
-				"Changing buffer count on CAPTURE_MPLANE from %d to %d for best effort encoding\n",
-				temp, *num_buffers);
+		if (*num_buffers > VIDEO_MAX_FRAME) {
+			dprintk(VIDC_ERR,
+				"Changing buffers requested, from %d to max"\
+				" supported (%d) best effort encoding\n",
+				*num_buffers, VIDEO_MAX_FRAME);
+			*num_buffers = VIDEO_MAX_FRAME;
 		}
 
 		ctrl = v4l2_ctrl_find(&inst->ctrl_handler,
 				V4L2_CID_MPEG_VIDC_VIDEO_EXTRADATA);
 		if (ctrl)
 			extradata = v4l2_ctrl_g_ctrl(ctrl);
-		if (extradata != V4L2_MPEG_VIDC_EXTRADATA_NONE)
+		if ((extradata == V4L2_MPEG_VIDC_EXTRADATA_MULTISLICE_INFO) ||
+			(extradata == V4L2_MPEG_VIDC_EXTRADATA_LTR))
 			*num_planes = *num_planes + 1;
 		inst->fmts[CAPTURE_PORT]->num_planes = *num_planes;
 
@@ -2177,6 +2177,14 @@ static int try_set_ext_ctrl(struct msm_vidc_inst *inst,
 		return -EINVAL;
 	}
 
+	cluster = get_cluster_from_id(ctrl->controls[0].id);
+
+	if (!cluster) {
+		dprintk(VIDC_ERR, "Invalid Ctrl returned for id: %x\n",
+			ctrl->controls[0].id);
+		return -EINVAL;
+	}
+
 	hdev = inst->core->device;
 	cap = &inst->capability;
 
@@ -2663,16 +2671,8 @@ int msm_venc_g_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 				buff_req_buffer->buffer_size : 0;
 		}
 		for (i = 0; i < fmt->num_planes; ++i) {
-			if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-				inst->bufq[OUTPUT_PORT].vb2_bufq.
-				plane_sizes[i] =
-				f->fmt.pix_mp.plane_fmt[i].sizeimage;
-			} else if (f->type ==
-				V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-				inst->bufq[CAPTURE_PORT].vb2_bufq.
-				plane_sizes[i] =
-				f->fmt.pix_mp.plane_fmt[i].sizeimage;
-			}
+			inst->bufq[CAPTURE_PORT].vb2_bufq.plane_sizes[i] =
+			f->fmt.pix_mp.plane_fmt[i].sizeimage;
 		}
 	} else {
 		dprintk(VIDC_ERR,
@@ -3018,6 +3018,11 @@ int msm_venc_ctrl_init(struct msm_vidc_inst *inst)
 
 int msm_venc_ctrl_deinit(struct msm_vidc_inst *inst)
 {
+	if (!inst) {
+		dprintk(VIDC_ERR, "%s invalid parameters\n", __func__);
+		return -EINVAL;
+	}
+
 	kfree(inst->ctrls);
 	kfree(inst->cluster);
 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
