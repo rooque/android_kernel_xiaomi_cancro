@@ -1527,8 +1527,11 @@ int create_pkt_cmd_session_set_property(
 		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
 		break;
 	}
+<<<<<<< HEAD
 =======
 >>>>>>> 84425c7... msm: vidc: add control to enable Hierarchical P num layers
+=======
+>>>>>>> 9519613... msm: vidc: Add support for setting initial qp
 	/* FOLLOWING PROPERTIES ARE NOT IMPLEMENTED IN CORE YET */
 	case HAL_CONFIG_BUFFER_REQUIREMENTS:
 	case HAL_CONFIG_PRIORITY:
