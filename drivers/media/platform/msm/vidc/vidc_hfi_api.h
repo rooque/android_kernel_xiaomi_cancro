@@ -91,6 +91,8 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_FRAME_RATE,
 	HAL_EXTRADATA_PANSCAN_WINDOW,
 	HAL_EXTRADATA_RECOVERY_POINT_SEI,
+	HAL_EXTRADATA_CLOSED_CAPTION_UD,
+	HAL_EXTRADATA_AFD_UD,
 	HAL_EXTRADATA_MULTISLICE_INFO,
 	HAL_EXTRADATA_INDEX,
 	HAL_EXTRADATA_NUM_CONCEALED_MB,
@@ -185,7 +187,9 @@ enum hal_property {
 	HAL_CONFIG_VENC_MARKLTRFRAME,
 	HAL_CONFIG_VENC_USELTRFRAME,
 	HAL_CONFIG_VENC_LTRPERIOD,
-	HAL_PARAM_VENC_HIER_P_NUM_FRAMES,
+	HAL_CONFIG_VENC_HIER_P_NUM_FRAMES,
+	HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS,
+	HAL_PARAM_VENC_ENABLE_INITIAL_QP,
 };
 
 enum hal_domain {
@@ -629,6 +633,13 @@ struct hal_quantization {
 	u32 qpp;
 	u32 qpb;
 	u32 layer_id;
+};
+
+struct hal_initial_quantization {
+	u32 qpi;
+	u32 qpp;
+	u32 qpb;
+	u32 initqp_enable;
 };
 
 struct hal_quantization_range {
