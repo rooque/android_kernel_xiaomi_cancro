@@ -34,6 +34,7 @@
 #define MXT_VER_20		20
 #define MXT_VER_21		21
 #define MXT_VER_22		22
+#define MXT_MAX_BUTTONS		8
 
 /* Firmware files */
 #define MXT_FW_NAME		"maxtouch.fw"
@@ -558,7 +559,7 @@ struct mxt_data {
 	u8 t100_tchaux_bits;
 	unsigned long keystatus;
 	u8 vendor_id;
-	int current_index;
+	bool buttons_enabled;
 	u8 update_flag;
 	u8 gr_enable;
 	int golden_ok;
@@ -3008,7 +3009,7 @@ static int mxt_get_t38_flag(struct mxt_data *data)
 
 static int mxt_get_init_setting(struct mxt_data *data)
 {
-	int error;
+	int i, error;
 	u8 selfthr;
 	u8 intthr;
 	u8 glovectrl;
@@ -3035,20 +3036,11 @@ static int mxt_get_init_setting(struct mxt_data *data)
 		data->intthr_save= intthr;
 	}
 
-	if (mxt_get_object(data, MXT_PROCI_GLOVEDETECTION_T78) != NULL) {
-		error = mxt_read_object(data, MXT_PROCI_GLOVEDETECTION_T78,
-						MXT_GLOVE_CTRL, &glovectrl);
-		if (error) {
-			dev_err(dev, "Failed to read glove setting from t78!\n");
 			return error;
 		}
 		if ((glovectrl & 0x01) != 0)
 			data->sensitive_mode = 1;
 	}
-
-	if (mxt_get_object(data, MXT_PROCI_RETRANSMISSIONCOMPENSATION_T80) != NULL) {
-		error = mxt_read_object(data, MXT_PROCI_RETRANSMISSIONCOMPENSATION_T80,
-					MXT_RETRANS_ATCHTHR, &atchthr);
 		if (error) {
 			dev_err(dev, "Faield to read from t80 anti-touch threshold!\n");
 			return error;
@@ -3080,6 +3072,17 @@ static int mxt_get_init_setting(struct mxt_data *data)
 	if (error) {
 		dev_err(dev, "Failed to initialize screen size\n");
 		return error;
+	}
+
+
+	/* For T15 key array */
+	if (data->T15_reportid_min) {
+		data->t15_keystatus = 0;
+
+		for (i = 0; i < data->pdata->t15_num_keys; i++)
+			if (data->pdata->t15_keymap[i])
+				input_set_capability(input_dev, EV_KEY,
+					     data->pdata->t15_keymap[i]);
 	}
 
 	return 0;
@@ -4822,7 +4825,8 @@ static bool mxt_read_and_check_calib_msg(struct mxt_data *data)
 		i ++;
 	}
 
-	return is_calib_msg_exists;
+	if (data->buttons_enabled)
+		data->t15_keystatus = 0;
 
 }
 
@@ -4878,13 +4882,34 @@ static void mxt_input_close(struct input_dev *dev)
 
 static void mxt_clear_touch_event(struct mxt_data *data)
 {
-	struct input_dev *input_dev = data->input_dev;
+	unsigned key_codes[MXT_MAX_BUTTONS];
 	int index = data->current_index;
 	int id, i;
 
-	for (id = 0; id < data->num_touchids - 2; id++) {
-		input_mt_slot(input_dev, id);
-		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
+	memset(key_codes, 0, sizeof(key_codes));
+	error = of_property_read_u32_array(np, "atmel,key-buttons",
+			 key_codes, MXT_MAX_BUTTONS);
+	if (!error) {
+		int i, keys;
+
+		pdata->t15_num_keys = MXT_MAX_BUTTONS;
+		pdata->t15_keymap = devm_kzalloc(dev,
+			sizeof(unsigned) * pdata->t15_num_keys, GFP_KERNEL);
+		if (!pdata->t15_keymap) {
+			dev_err(dev, "T15 keymap allocation failure\n");
+			goto exit_parser;
+		}
+
+		for (i = 0, keys = 0; i < pdata->t15_num_keys; i++)
+			if (key_codes[i]) {
+				*(pdata->t15_keymap + i) = key_codes[i];
+				keys++;
+			}
+
+		data->buttons_enabled = true;
+		pr_info("T15 has %d buttons\n", keys);
+	}
+
 	}
 	for (i = 0; i < data->pdata->config_array[index].key_num; i++)
 		clear_bit(data->pdata->config_array[index].key_codes[i], input_dev->key);

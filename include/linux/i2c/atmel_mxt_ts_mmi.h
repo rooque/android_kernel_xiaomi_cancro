@@ -71,9 +71,9 @@ struct mxt_platform_data {
 	size_t config_array_size;
 	unsigned long irqflags;
 	int power_gpio;
-	int reset_gpio;
+	unsigned int *t19_keymap;
 	int irq_gpio;
-	u8(*read_chg) (void);
+	unsigned int *t15_keymap;
 	const char *input_name;
 	int unlock_move_threshold;
 	int moving_threshold;
