@@ -1480,6 +1480,7 @@ int create_pkt_cmd_session_set_property(
 		break;
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
 	case HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS:
 	{
 		pkt->rg_property_data[0] =
@@ -1490,11 +1491,20 @@ int create_pkt_cmd_session_set_property(
 		pkt->rg_property_data[0] =
 			HFI_PROPERTY_PARAM_VENC_HIER_P_NUM_ENH_LAYER;
 >>>>>>> 84425c7... msm: vidc: add control to enable Hierarchical P num layers
+=======
+	case HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS:
+	{
+		pkt->rg_property_data[0] =
+			HFI_PROPERTY_PARAM_VENC_HIER_P_MAX_NUM_ENH_LAYER;
+>>>>>>> 463cb76... msm: vidc: configure and set hier-p layers
 		pkt->rg_property_data[1] = *(u32 *)pdata;
 		pkt->size += sizeof(u32) * 2;
 		break;
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 463cb76... msm: vidc: configure and set hier-p layers
 	case HAL_CONFIG_VENC_HIER_P_NUM_FRAMES:
 	{
 		pkt->rg_property_data[0] =
