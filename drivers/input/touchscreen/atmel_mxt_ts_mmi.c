@@ -410,7 +410,8 @@ enum ATMEL_MXT_STATES;
 #define MXT_STYLUS_PRESSURE_MASK	0x3F
 
 /* Touchscreen absolute values */
-#define MXT_MAX_AREA		0xff
+#define MXT_MAX_AREA		50
+#define MXT_MAX_PRESSURE	26
 
 /* T66 Golden Reference */
 #define MXT_GOLDENREF_CTRL		0x00
@@ -3228,7 +3229,7 @@ static int mxt_get_t38_flag(struct mxt_data *data)
 
 	error = mxt_read_resolution(data);
 	if (error) {
-		dev_err(dev, "Failed to initialize screen size\n");
+				     0, MXT_MAX_PRESSURE, 0, 0);
 		return error;
 	}
 
