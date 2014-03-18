@@ -2426,7 +2426,24 @@ static int mxt_check_power_cfg_post_reset(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_probe_power_cfg(struct mxt_data *data)
+static bool mxt_t47_stylus_state(struct mxt_data *data)
+{
+	struct mxt_object *object;
+	int error;
+	u8 control = 0;
+
+	object = mxt_get_object(data, MXT_PROCI_STYLUS_T47);
+	if (!object)
+		return false;
+
+	error = __mxt_read_reg(data->client, object->start_address,
+				sizeof(control), &control);
+	if (error)
+		dev_warn(&data->client->dev, "Unable to read T47\n");
+
+	return control ? true : false;
+}
+
 {
 	int error;
 
@@ -3207,10 +3224,10 @@ static int mxt_get_t38_flag(struct mxt_data *data)
 		data->atchthr = atchthr;
 	}
 
-	if (mxt_get_object(data, MXT_SPT_SELFCAPHOVERCTECONFIG_T102) != NULL) {
-		error = mxt_read_object(data, MXT_SPT_SELFCAPHOVERCTECONFIG_T102,
-					MXT_SELF_RECALCFG, &data->self_recalib_para);
-		if (error) {
+	if (mxt_t47_stylus_state(data))
+		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+					0, MT_TOOL_MAX, 0, 0);
+
 			dev_err(dev, "Faield to read from t102 self recalib para!\n");
 			return error;
 		}
