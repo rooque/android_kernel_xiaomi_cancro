@@ -5811,11 +5811,10 @@ static int __devinit mxt_probe(struct i2c_client *client,
 		}
 	}
 
-	i2c_set_clientdata(data->client, data);
-	msleep(10);
+	data->irq_enabled = true;
+
 	mxt_wait_for_chg(data);
 
-	mxt_irq_enable(data, true);
 		INIT_DELAYED_WORK(&data->update_setting_delayed_work,
 					mxt_update_setting_delayed_work);
 
