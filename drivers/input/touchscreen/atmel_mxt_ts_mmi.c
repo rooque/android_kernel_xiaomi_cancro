@@ -5160,7 +5160,7 @@ static int mxt_resume(struct device *dev)
 }
 
 static int mxt_input_enable(struct input_dev *in_dev)
-{
+	data->pdata->irqflags = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
 	int error = 0;
 	struct mxt_data *ts = input_get_drvdata(in_dev);
 
