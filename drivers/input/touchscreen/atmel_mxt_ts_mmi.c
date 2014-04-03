@@ -2031,8 +2031,10 @@ static int mxt_read_t9_messages_until_invalid(struct mxt_data *data)
 	/* Read messages until we force an invalid */
 	do {
 		read = mxt_read_count_messages(data, count);
-		if (read < count)
+		if (read < count) {
+			dev_dbg(dev, "dumped %d messages\n", read);
 			return 0;
+		}
 	} while (--tries);
 
 	dev_err(dev, "CHG pin isn't cleared\n");
@@ -3105,7 +3107,12 @@ static int mxt_update_self_chgtime(struct mxt_data *data, bool inc)
 	return error;
 }
 
-static int mxt_wait_for_self_tune_msg(struct mxt_data *data)
+static void mxt_gpio_free(struct mxt_data *data)
+{
+	gpio_free(data->pdata->gpio_reset);
+	gpio_free(data->pdata->gpio_irq);
+}
+
 {
 	int time_out = 1000;
 	int i = 0;
@@ -3367,12 +3374,15 @@ retry_probe:
 
 static int strtobyte(const char *data, u8 *value)
 			data->irq_enabled ? "ENABLED" : "DISABLED");
+		dev_err(dev, "%s: Failed to convert value.\n", __func__);
 		mxt_irq_enable(data, false);
 		data->enable_reporting = false;
 		mxt_irq_enable(data, true);
 		data->enable_reporting = true;
+		dev_err(dev, "%s: Invalid value\n", __func__);
 {
 	char str[3];
+		dev_err(dev, "%s: Failed to get GPIO for irq %d.\n",
 		mxt_resume(&data->client->dev);
 	str[1] = data[1];
 
@@ -5032,12 +5042,12 @@ static int mxt_input_open(struct input_dev *dev)
 	mxt_irq_enable(data, true);
 		return;
 
-	if (data->use_regulator)
+	if (data->use_regulator) {
 		mxt_regulator_enable(data);
-	else if (data->sensor_sleep)
+		mxt_acquire_irq(data);
+	} else if (data->sensor_sleep)
 		mxt_sensor_wake(data, true);
 
-	if (mxt_read_and_check_calib_msg(data))
 		mxt_do_calibration(data);
 	dev_dbg(dev, "MXT started\n");
 	dev_dbg(&data->client->dev, "critical section RELEASE\n");
@@ -5911,7 +5921,7 @@ err_remove_sysfs_group:
 	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
 err_free_irq:
 	free_irq(client->irq, data);
-err_free_input_device:
+	mxt_gpio_free(data);
 	input_unregister_device(data->input_dev);
 err_free_object:
 	kfree(data->msg_buf);
@@ -5952,8 +5962,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 	input_unregister_device(data->input_dev);
 	kfree(data->msg_buf);
 	data->msg_buf = NULL;
-	kfree(data->object_table);
-	data->object_table = NULL;
+	mxt_gpio_free(data);
 	if (gpio_is_valid(pdata->power_gpio)) {
 		gpio_set_value_cansleep(pdata->power_gpio, 0);
 	} else {
