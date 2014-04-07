@@ -327,7 +327,7 @@ enum ATMEL_MXT_STATES;
 #define MXT_BACKUP_TIME		25	/* msec */
 #define MXT_RESET_TIME		200	/* msec */
 #define MXT_RESET_NOCHGREAD	400	/* msec */
-#define MXT_FWRESET_TIME	1000	/* msec */
+#define MXT_CRC_TIMEOUT		2000	/* msec */
 #define MXT_WAKEUP_TIME		25	/* msec */
 
 /* Defines for MXT_SLOWSCAN_EXTENSIONS */
@@ -687,6 +687,9 @@ static void mxt_regulator_disable(struct mxt_data *data);
 static void mxt_regulator_enable(struct mxt_data *data);
 static void mxt_reset_slots(struct mxt_data *data);
 
+	if (data->debug_msg_attr.attr.name) {
+		data->debug_msg_attr.attr.name = NULL;
+	}
 {
 	int ret;
 	struct i2c_msg msg;
@@ -2677,13 +2680,9 @@ static void mxt_set_sensor_state(struct mxt_data *data, int state)
 			break;
 
 	case STATE_INIT:
-		mxt_irq_enable(data, true);
-
+		/* set flag to avoid object specific message handling */
 		if (!data->in_bootloader)
 			data->in_bootloader = true;
-
-		if (!data->use_regulator && data->sensor_sleep)
-			mxt_sensor_wake(data, false);
 			break;
 	}
 
@@ -4617,17 +4616,15 @@ static ssize_t mxt_diagnostic_show(struct device *dev,
 		/* At this stage, do not need to scan since we know
 		 * family ID */
 					buf + len, PAGE_SIZE - len, false);
+	} else
+		mxt_irq_enable(data, false);
 
-		mxt_irq_enable(data, true);
-	}
+	mxt_set_sensor_state(data, STATE_INIT);
 
 	/* Level triggered IRQ causes WD reset due to soft IRQ lockup, */
 	/* thus change it to edge triggered for the durantion of flash */
-	mxt_irq_enable(data, false);
 	free_irq(data->irq, data);
 	mxt_request_irq(data, IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
-
-	mxt_set_sensor_state(data, STATE_INIT);
 
 	kfree(tmp_buffer);
 	dev_dbg(dev, "critical section LOCK\n");
