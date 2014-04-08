@@ -2446,11 +2446,9 @@ static bool mxt_t47_stylus_state(struct mxt_data *data)
 	return control ? true : false;
 }
 
+static inline int mxt_acquire_irq(struct mxt_data *data)
 {
-	int error;
-
-	data->slowscan_actv_cycle_time = 120;   /* 120mS */
-	data->slowscan_idle_cycle_time = 10;    /* 10mS */
+	return mxt_process_messages_until_invalid(data);
 	data->slowscan_actv2idle_timeout = 100; /* 10 seconds */
 
 	error = mxt_read_power_cfg(data, &data->actv_cycle_time,
@@ -2462,8 +2460,6 @@ static bool mxt_t47_stylus_state(struct mxt_data *data)
 	/* If in deep sleep mode, attempt reset */
 	if (data->actv_cycle_time == 0 || data->idle_cycle_time == 0) {
 		error = mxt_soft_reset(data, MXT_RESET_VALUE);
-		if (error)
-			return error;
 
 		error = mxt_check_power_cfg_post_reset(data);
 		if (error)
@@ -2572,9 +2568,6 @@ static int mxt_backup_nv(struct mxt_data *data)
 	if (error) {
 		dev_err(&data->client->dev, "Failed to do reset!\n");
 		return error;
-	}
-
-	return 0;
 }
 
 static void mxt_irq_enable(struct mxt_data *data, bool enable)
