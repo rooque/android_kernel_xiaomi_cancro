@@ -291,6 +291,7 @@ enum ATMEL_MXT_STATES;
 /* MXT_PROCG_NOISESUPPRESSION_T72 */
 #define MXT_NOISESUP_CALCFG	1
 #define MXT_NOISESUP_CFG1	2
+#define MXT_T100_NUMTCH		6
 
 /* MXT_PROCI_GLOVEDETECTION_T78 */
 #define MXT_GLOVE_CTRL		0x00
@@ -583,7 +584,7 @@ struct mxt_data {
 	u8 selfthr_save;
 	u8 intthr_save;
 	struct mxt_finger finger;
-	struct mxt_finger finger_tracker[MXT_MAX_FINGER_NUM];
+	u8 *T100_data;
 	int land_signed;
 	int touch_num;
 	int self_restore_done;
@@ -2586,7 +2587,49 @@ static void mxt_irq_enable(struct mxt_data *data, bool enable)
 
 static void mxt_sensor_one_touch(struct mxt_data *data, bool enable)
 {
-	dev_dbg(&data->client->dev, "TBD: config one touch: %d\n", enable);
+	struct mxt_object *object;
+	int error;
+	u8 *t100_data_ptr;
+
+	if (!data->T100_data) {
+		dev_dbg(&data->client->dev, "T100: data not available\n");
+		return;
+	}
+
+	object = mxt_get_object(data, MXT_TOUCH_MULTITOUCHSCREEN_T100);
+	if (!object)
+		return;
+
+	if (enable) {
+		t100_data_ptr = kmalloc(mxt_obj_size(object), GFP_KERNEL);
+		if (!t100_data_ptr) {
+			dev_err(&data->client->dev,
+				"T100: failed to allocate buffer\n");
+			return;
+		}
+
+		memcpy(t100_data_ptr, data->T100_data, mxt_obj_size(object));
+
+		/* make necessary changes here */
+		*(t100_data_ptr + MXT_T100_NUMTCH) = 1;
+		*(t100_data_ptr + MXT_T100_TCHAUX) &= ~(MXT_T100_TCHAUX_VECT |
+				MXT_T100_TCHAUX_AMPL | MXT_T100_TCHAUX_AREA);
+	} else
+		t100_data_ptr = data->T100_data;
+
+	error = __mxt_write_reg(data->client, object->start_address,
+				mxt_obj_size(object), t100_data_ptr);
+	if (error)
+		dev_warn(&data->client->dev,
+			"Failed to %s single-touch config\n",
+			enable ? "enable" : "disable");
+	else
+		dev_dbg(&data->client->dev,
+			"Successfully %s single-touch config\n",
+			enable ? "enabled" : "disabled");
+
+	if (t100_data_ptr != data->T100_data)
+		kfree(t100_data_ptr);
 }
 
 static void mxt_sensor_sleep(struct mxt_data *data)
@@ -2745,6 +2788,8 @@ static int mxt_read_info_block_crc(struct mxt_data *data)
 	u8 buf[3];
 
 	offset = MXT_OBJECT_START + MXT_OBJECT_SIZE * data->info.object_num;
+	kfree(data->T100_data);
+	data->T100_data = NULL;
 
 	ret = mxt_read_reg(data->client, offset, sizeof(buf), buf);
 	if (ret)
@@ -3179,6 +3224,25 @@ static int mxt_get_t38_flag(struct mxt_data *data)
 		return error;
 
 	data->update_flag = flag;
+
+	/* T100 object size might change, thus free allocated buffer */
+	kfree(data->T100_data);
+
+	/* allocate memory to keep a copy of T100 */
+	data->T100_data = kzalloc(mxt_obj_size(object), GFP_KERNEL);
+	if (!data->T100_data)
+		dev_warn(&client->dev, "Cannot allocate T100 data buffer\n");
+	else {
+		error = __mxt_read_reg(client, object->start_address,
+				mxt_obj_size(object), data->T100_data);
+		if (error) {
+			dev_warn(&client->dev, "T100: failed to store data\n");
+			kfree(data->T100_data);
+			data->T100_data = NULL;
+		} else
+			dev_dbg(&client->dev, "T100: stored %d bytes\n",
+				mxt_obj_size(object));
+	}
 
 	return 0;
 }
@@ -5070,6 +5134,11 @@ static void mxt_clear_touch_event(struct mxt_data *data)
 					"atmel,suspend-method-lpm");
 	pr_info("using suspend method: %s\n", data->use_regulator ?
 					"reset" : "lpm");
+	data->one_touch_enabled = of_property_read_bool(np,
+					"atmel,one-touch-enabled");
+	if (data->one_touch_enabled)
+		pr_info("using single touch in suspend\n");
+
 
 	memset(key_codes, 0, sizeof(key_codes));
 	error = of_property_read_u32_array(np, "atmel,key-buttons",
