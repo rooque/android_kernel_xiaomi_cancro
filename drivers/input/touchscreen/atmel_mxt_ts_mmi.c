@@ -695,6 +695,8 @@ static void mxt_regulator_disable(struct mxt_data *data);
 static void mxt_regulator_enable(struct mxt_data *data);
 static void mxt_reset_slots(struct mxt_data *data);
 
+	print_hex_dump(KERN_DEBUG, "atmel_mxt_ts_mmi: MXT MSG:",
+		       DUMP_PREFIX_NONE, 16, 1,
 	if (data->debug_msg_attr.attr.name) {
 		data->debug_msg_attr.attr.name = NULL;
 	}
@@ -1584,7 +1586,6 @@ static void mxt_disable_anticalib_delayed_work(struct work_struct *work)
 
 static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 {
-	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev = data->input_dev;
 	u8 status;
 	int x;
@@ -1616,7 +1617,7 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 		if (data->touch_num > 1 && !data->self_restore_done)
 			data->land_signed = 0;
 
-		if (status & MXT_T100_SUP)
+	dev_dbg(&data->client->dev,
 		{
 			int i;
 			for (i = 0; i < data->num_touchids - 2; i++) {
@@ -2037,22 +2038,30 @@ static irqreturn_t mxt_read_messages_t44(struct mxt_data *data)
 static int mxt_read_t9_messages_until_invalid(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
-	int count, read;
+	int error, count, num_handled = 0;
 	u8 tries = 2;
 
-	count = data->max_reportid;
+	error = gpio_get_value(data->pdata->gpio_irq);
+	if (error) {
+		dev_dbg(dev, "CHG pin de-asserted\n");
+		return 0;
+	}
 
+	count = data->max_reportid;
 	/* Read messages until we force an invalid */
 	do {
-		read = mxt_read_count_messages(data, count);
-		if (read < count) {
-			dev_dbg(dev, "dumped %d messages\n", read);
-			return 0;
+		num_handled = mxt_read_and_process_messages(data, count);
+		if (num_handled < count) {
+			dev_dbg(dev, "dumped %d messages\n", num_handled);
+			break;
 		}
 	} while (--tries);
 
-	dev_err(dev, "CHG pin isn't cleared\n");
-	return -EBUSY;
+	error = gpio_get_value(data->pdata->gpio_irq);
+	if (!error) {
+		dev_err(dev, "CHG pin still asserted\n");
+		return -EBUSY;
+	return 0;
 }
 
 static irqreturn_t mxt_read_t9_messages(struct mxt_data *data)
@@ -2659,9 +2668,6 @@ static void mxt_sensor_sleep(struct mxt_data *data)
 
 static void mxt_sensor_wake(struct mxt_data *data, bool calibrate)
 {
-	/* Discard any messages still in message buffer
-	 * from before chip went to sleep */
-	mxt_process_messages_until_invalid(data);
 	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
 
 	if (calibrate) {
