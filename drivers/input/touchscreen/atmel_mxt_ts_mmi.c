@@ -26,7 +26,9 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
-#include <linux/string.h>
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+#include "touchx.h"
+#endif
 #define ATMEL_MXT_STATES { \
 	MXT_DEF(UNKNOWN), \
 	MXT_DEF(ACTIVE), \
@@ -680,6 +682,11 @@ static const struct mxt_i2c_address_pair mxt_i2c_addresses[] = {
 	{ 0x35, 0x5b },
 #endif
 };
+
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+struct touchxs touchxp;
+EXPORT_SYMBOL(touchxp);
+#endif
 
 static int mxt_resume(struct device *dev);
 static int mxt_get_sensor_state(struct mxt_data *data);
@@ -1583,10 +1590,10 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 	int x;
 	int y;
 	int area = 0;
-	int amplitude = 0;
-	u8 vector = 0;
-	u8 peak = 0;
-	int id;
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+	unsigned char number_of_fingers_actually_touching;
+	static char finger_register[32];
+#endif
 	int index = 0;
 	int finger_state = 0;
 
@@ -1627,13 +1634,13 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 		y = (message[5] << 8) | (message[4] & 0xFF);
 		index = 6;
 
-		if (data->t100_tchaux_bits &  MXT_T100_VECT)
-			vector = message[index++];
-		if (data->t100_tchaux_bits &  MXT_T100_AMPL) {
-			amplitude = message[index++];
-		}
-		if (data->t100_tchaux_bits &  MXT_T100_AREA) {
-			area = message[index++];
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+	if (touchxp.touchx)
+		mutex_lock(&touchxp.virtual_touch_mutex);
+
+	finger_register[id < 32 ? id : 31] += 1;
+#endif
+
 		}
 		if (data->t100_tchaux_bits &  MXT_T100_PEAK)
 			peak = message[index++];
@@ -1670,20 +1677,20 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 				delta_x = x - data->finger_tracker[id - 2].x;
 				delta_y = y - data->finger_tracker[id - 2].y;
 
-				/* report the recorded position if the change is small */
-				if (delta_x * delta_x + delta_y * delta_y <= threshold * threshold) {
-					x = data->finger_tracker[id - 2].x;
-					y = data->finger_tracker[id - 2].y;
-					finger_state |= (prev_state & 0x80);
-				} else { /* save new location and set moving flag */
-					data->finger_tracker[id - 2].x = x;
-					data->finger_tracker[id - 2].y = y;
-					finger_state |= 0x80;
-				}
-			 }
-			/* Touch in detect, report X/Y position */
-			if (data->touch_num == 1 &&
-				!data->land_signed &&
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+		if (touchxp.touchx) {
+			int i;
+			number_of_fingers_actually_touching = 0;
+			for (i = 0; i < 32; i++) {
+				if (finger_register[i] != 0)
+					number_of_fingers_actually_touching++;
+			}
+			touchxp.touch_magic_dev = input_dev;
+			touchxp.touchx(&x, &y, id,
+				       number_of_fingers_actually_touching);
+		}
+#endif
+
 				!data->self_restore_done) {
 				data->finger.x = x;
 				data->finger.y = y;
@@ -1714,10 +1721,10 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 			}
 		} else {
 			/* Touch no longer in detect, so close out slot */
-			if (data->touch_num == 0 &&
-				data->land_signed &&
-				!data->self_restore_done) {
-				int delta_x = x - data->finger.x;
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+		touchxp.finger_down = 0;
+		finger_register[id < 32 ? id : 31] = 0;
+#endif
 				int delta_y = y - data->finger.y;
 				if(delta_x * delta_x +  delta_y * delta_y >=
 					data->pdata->unlock_move_threshold) {
@@ -1732,8 +1739,11 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 			mxt_input_sync(data);
 			input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, 0);
 		}
-		data->finger_tracker[id - 2].state = finger_state;
-	}
+
+#ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
+	if (touchxp.touchx)
+		mutex_unlock(&touchxp.virtual_touch_mutex);
+#endif
 }
 
 static void mxt_proc_t15_messages(struct mxt_data *data, u8 *msg)
