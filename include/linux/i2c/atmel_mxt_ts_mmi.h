@@ -64,10 +64,14 @@ struct mxt_config_info {
 	u8 mult_tchthr_not_sensitive;
 };
 
+struct mxt_panel_resolution {
+	u16	x_max, y_max;
+};
+
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
 	struct mxt_config_info *config_array;
-	const char* mxt_fw_name;
+	struct mxt_panel_resolution res;
 	size_t config_array_size;
 	unsigned long irqflags;
 	int power_gpio;
