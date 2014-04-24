@@ -1992,6 +1992,11 @@ static irqreturn_t mxt_read_messages_t44(struct mxt_data *data)
 	int ret;
 	u8 count, num_left;
 
+	if (!data->msg_buf) {
+		dev_err(dev, "Message buffer not allocated!!!\n");
+		return IRQ_NONE;
+	}
+
 	/* Read T44 and T5 together */
 	ret = mxt_read_reg(data->client, data->T44_address,
 		data->T5_msg_size + 1, data->msg_buf);
@@ -3351,6 +3356,18 @@ static int mxt_get_t38_flag(struct mxt_data *data)
 	return 0;
 }
 
+static void mxt_request_irq(struct mxt_data *data, unsigned long flags)
+{
+	int error;
+
+	dev_dbg(&data->client->dev, "requesting IRQ, flags: %lu\n", flags);
+	error = request_threaded_irq(data->irq, NULL, mxt_interrupt,
+				     flags, data->client->name, data);
+	/* no need to stay alive, touch is not functional */
+	BUG_ON(error);
+	data->irq_enabled = true;
+}
+
 static int mxt_initialize(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
@@ -3404,6 +3421,11 @@ retry_probe:
 	if (error) {
 		dev_err(&client->dev, "Error %d reading object table\n", error);
 		return error;
+	/* Touch IC is in UI mode, re-register to level */
+	/* triggered IRQ mode per Atmel specification   */
+	free_irq(data->irq, data);
+	mxt_request_irq(data, data->pdata->irqflags);
+
 	mxt_set_sensor_state(data, (current_state == STATE_UNKNOWN) ?
 					STATE_STANDBY : STATE_ACTIVE);
 	}
@@ -4584,18 +4606,6 @@ static int mxt_stylus_mode_switch(struct mxt_data *data, bool mode_on)
 	return 0;
 }
 
-static void mxt_request_irq(struct mxt_data *data, unsigned long flags)
-{
-	int error;
-
-	dev_dbg(&data->client->dev, "requesting IRQ, flags: %lu\n", flags);
-	error = request_threaded_irq(data->irq, NULL, mxt_interrupt,
-				     flags, data->client->name, data);
-	/* no need to stay alive, touch is not functional */
-	BUG_ON(error);
-	data->irq_enabled = true;
-}
-
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	int count;
@@ -4685,9 +4695,9 @@ static ssize_t mxt_diagnostic_show(struct device *dev,
 	if (tmp_buffer == NULL)
 		return -ENOMEM;
 
-	error = mxt_get_diag_data(data, tmp_buffer);
-		mxt_irq_enable(data, false);
+	mxt_irq_enable(data, false);
 
+	if (!data->in_bootloader) {
 		dev_dbg(dev, "Reboot to bootloader\n\n");
 		/* Change to the bootloader mode */
 
@@ -4701,18 +4711,17 @@ static ssize_t mxt_diagnostic_show(struct device *dev,
 		len ++;
 	}
 
-		/* At this stage, do not need to scan since we know
-		 * family ID */
+		/* At this stage, no need to scan since family ID is known */
 					buf + len, PAGE_SIZE - len, false);
+
+		/* Level triggered IRQ causes WD reset due to soft IRQ   */
+		/* lockup, thus change to edge for the duration of flash */
+		free_irq(data->irq, data);
+		mxt_request_irq(data, IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
 	} else
-		mxt_irq_enable(data, false);
+		mxt_irq_enable(data, true);
 
 	mxt_set_sensor_state(data, STATE_INIT);
-
-	/* Level triggered IRQ causes WD reset due to soft IRQ lockup, */
-	/* thus change it to edge triggered for the durantion of flash */
-	free_irq(data->irq, data);
-	mxt_request_irq(data, IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
 
 	kfree(tmp_buffer);
 	dev_dbg(dev, "critical section LOCK\n");
@@ -4919,11 +4928,6 @@ initialize:
 
 	queue_work(data->work_queue, &data->pre_use_work);
 	dev_dbg(dev, "critical section RELEASE\n");
-
-	/* Switch back to default triggered IRQ mode */
-	mxt_irq_enable(data, false);
-	free_irq(data->irq, data);
-	mxt_request_irq(data, data->pdata->irqflags);
 
 
 				struct device_attribute *attr,
@@ -5924,8 +5928,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
 			goto err_irq_gpio_req;
 		}
 
-	mxt_request_irq(data, data->pdata->irqflags);
-		}
+	/* Handle power up in edge triggered IRQ mode */
+	mxt_request_irq(data, IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
 	}
 
 	mxt_wait_for_chg(data);
