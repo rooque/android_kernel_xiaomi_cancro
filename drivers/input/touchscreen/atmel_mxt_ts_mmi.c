@@ -695,8 +695,36 @@ static void mxt_regulator_disable(struct mxt_data *data);
 static void mxt_regulator_enable(struct mxt_data *data);
 static void mxt_reset_slots(struct mxt_data *data);
 
-	print_hex_dump(KERN_DEBUG, "atmel_mxt_ts_mmi: MXT MSG:",
-		       DUMP_PREFIX_NONE, 16, 1,
+struct debug_section {
+	unsigned long j;
+	unsigned int count;
+};
+
+static struct debug_section mxt_proc_t100_dbg;
+static struct debug_section mxt_dump_message_dbg;
+
+/* Function: throttle_dbgout
+ *  Print no more than n messages in msec interval
+ *  Return
+ *  - false if printing is allowed
+ *  - true if printing is NOT allowed
+ */
+bool throttle_dbgout(struct debug_section *dbg, int n, unsigned int msec)
+{
+	if (printk_timed_ratelimit(&dbg->j, msec))
+		dbg->count = 0;
+
+	if (dbg->count < n) {
+		++dbg->count;
+		return false;
+	} else
+		return true;
+}
+
+	if (!throttle_dbgout(&mxt_dump_message_dbg, 20, 300000))
+		print_hex_dump(KERN_DEBUG, "atmel_mxt_ts_mmi: MXT MSG:",
+			DUMP_PREFIX_NONE, 16, 1,
+			message, data->T5_msg_size, false);
 	if (data->debug_msg_attr.attr.name) {
 		data->debug_msg_attr.attr.name = NULL;
 	}
@@ -1617,7 +1645,8 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 		if (data->touch_num > 1 && !data->self_restore_done)
 			data->land_signed = 0;
 
-	dev_dbg(&data->client->dev,
+	if (!throttle_dbgout(&mxt_proc_t100_dbg, 20, 60000))
+		dev_dbg(&data->client->dev,
 		{
 			int i;
 			for (i = 0; i < data->num_touchids - 2; i++) {
