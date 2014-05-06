@@ -294,6 +294,8 @@ enum ATMEL_MXT_STATES;
 #define MXT_NOISESUP_CALCFG	1
 #define MXT_NOISESUP_CFG1	2
 #define MXT_T100_NUMTCH		6
+#define MXT_T100_MOVHYSTI	47
+#define MXT_T100_MOVHYSTN	49
 
 /* MXT_PROCI_GLOVEDETECTION_T78 */
 #define MXT_GLOVE_CTRL		0x00
@@ -2667,6 +2669,8 @@ static void mxt_sensor_one_touch(struct mxt_data *data, bool enable)
 		*(t100_data_ptr + MXT_T100_NUMTCH) = 1;
 		*(t100_data_ptr + MXT_T100_TCHAUX) &= ~(MXT_T100_TCHAUX_VECT |
 				MXT_T100_TCHAUX_AMPL | MXT_T100_TCHAUX_AREA);
+		*(t100_data_ptr + MXT_T100_MOVHYSTI) = 0x32;
+		*(t100_data_ptr + MXT_T100_MOVHYSTN) = 0x32;
 
 		/* if defined, reset panel resolution */
 		if (data->pdata->res.x_max && data->pdata->res.y_max) {
