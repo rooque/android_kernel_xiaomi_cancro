@@ -5161,7 +5161,7 @@ static int mxt_input_open(struct input_dev *dev)
 		mxt_regulator_enable(data);
 		mxt_acquire_irq(data);
 	} else if (data->sensor_sleep)
-		mxt_sensor_wake(data, false);
+		mxt_sensor_wake(data, true);
 
 		mxt_do_calibration(data);
 	dev_dbg(dev, "MXT started\n");
@@ -6125,7 +6125,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 			mxt_regulator_enable(data);
 			mxt_acquire_irq(data);
 		} else if (data->sensor_sleep)
-			mxt_sensor_wake(data, false);
+			mxt_sensor_wake(data, true);
 
 		mutex_unlock(&data->crit_section_lock);
 		dev_dbg(&data->client->dev, "critical section RELEASE\n");
