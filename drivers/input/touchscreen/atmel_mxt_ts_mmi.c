@@ -5125,12 +5125,12 @@ static bool mxt_read_and_check_calib_msg(struct mxt_data *data)
 	struct device *dev = &data->client->dev;
 	bool is_calib_msg_exists = false;
 
-	while (true) {
-		ret = mxt_read_reg(data->client, data->T5_address,
-				data->T5_msg_size, data->msg_buf);
-		if (ret) {
-			dev_err(dev, "Failed to read %d messages (%d)\n", i, ret);
-			return false;
+	if (data->buttons_enabled)
+		data->t15_keystatus = 0;
+
+	if (!input_dev)
+		return;
+
 		}
 
 		if (data->msg_buf[0] == MXT_RPTID_NOMSG)
@@ -5143,9 +5143,6 @@ static bool mxt_read_and_check_calib_msg(struct mxt_data *data)
 			is_calib_msg_exists = true;
 		i ++;
 	}
-
-	if (data->buttons_enabled)
-		data->t15_keystatus = 0;
 
 }
 
