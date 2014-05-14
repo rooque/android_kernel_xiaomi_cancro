@@ -2074,24 +2074,16 @@ static irqreturn_t mxt_read_messages_t44(struct mxt_data *data)
 static int mxt_read_t9_messages_until_invalid(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
-	int error, count, num_handled = 0;
-	u8 tries = 2;
+	int error, num_handled, processed = 0;
 
-	error = gpio_get_value(data->pdata->gpio_irq);
-	if (error) {
-		dev_dbg(dev, "CHG pin de-asserted\n");
-		return 0;
-	}
-
-	count = data->max_reportid;
 	/* Read messages until we force an invalid */
 	do {
-		num_handled = mxt_read_and_process_messages(data, count);
-		if (num_handled < count) {
-			dev_dbg(dev, "dumped %d messages\n", num_handled);
-			break;
-		}
-	} while (--tries);
+		num_handled = mxt_read_and_process_messages(data, 1);
+		processed += num_handled;
+	} while (num_handled > 0);
+
+	if (processed)
+		dev_dbg(dev, "processed %d messages\n", processed);
 
 	error = gpio_get_value(data->pdata->gpio_irq);
 	if (!error) {
@@ -6116,13 +6108,20 @@ static int __devexit mxt_remove(struct i2c_client *client)
 		gpio_free(pdata->power_gpio);
 	int state = mxt_get_sensor_state(data);
 	if (data->suspended) {
-		mxt_irq_enable(data, true);
-
 		if (data->use_regulator) {
+			mxt_irq_enable(data, true);
 			mxt_regulator_enable(data);
 			mxt_acquire_irq(data);
-		} else if (data->sensor_sleep)
-			mxt_sensor_wake(data, true);
+		} else if (data->sensor_sleep) {
+			mxt_sensor_wake(data, false);
+			/* hard reset touch */
+			gpio_set_value(data->pdata->gpio_reset, 0);
+			udelay(1500);
+			gpio_set_value(data->pdata->gpio_reset, 1);
+			msleep(50);
+			/* now it's safe to enable interrupts */
+			mxt_irq_enable(data, true);
+		}
 
 		mutex_unlock(&data->crit_section_lock);
 		dev_dbg(&data->client->dev, "critical section RELEASE\n");
