@@ -2076,9 +2076,10 @@ static int mxt_read_t9_messages_until_invalid(struct mxt_data *data)
 	struct device *dev = &data->client->dev;
 	int error, num_handled, processed = 0;
 
-	/* Read messages until we force an invalid */
 	do {
-		num_handled = mxt_read_and_process_messages(data, 1);
+		/* It appears host has to read "beyond" the message */
+		/* with invalid id to ensure CHG line gets deasserted */
+		num_handled = mxt_read_and_process_messages(data, 3);
 		processed += num_handled;
 	} while (num_handled > 0);
 
@@ -2086,9 +2087,8 @@ static int mxt_read_t9_messages_until_invalid(struct mxt_data *data)
 		dev_dbg(dev, "processed %d messages\n", processed);
 
 	error = gpio_get_value(data->pdata->gpio_irq);
-	if (!error) {
+	if (!error)
 		dev_err(dev, "CHG pin still asserted\n");
-		return -EBUSY;
 	return 0;
 }
 
@@ -2689,6 +2689,28 @@ static void mxt_sensor_one_touch(struct mxt_data *data, bool enable)
 		kfree(t100_data_ptr);
 }
 
+static void mxt_wait_for_idle(struct mxt_data *data)
+{
+	int state, timeout_retries = 0;
+	unsigned long start_wait_jiffies = jiffies;
+
+	/* Reset completion indicated by asserting CHG  */
+	/* Wait for CHG asserted or timeout after 200ms */
+	do {
+		state = gpio_get_value(data->pdata->gpio_irq);
+		if (!state)
+			break;
+		usleep_range(1000, 1000);
+	} while (++timeout_retries < 100);
+
+	if (!state)
+		dev_dbg(&data->client->dev, "reset took %ums\n",
+			jiffies_to_msecs(jiffies - start_wait_jiffies));
+	else
+		dev_warn(&data->client->dev, "timeout waiting for idle %ums\n",
+			jiffies_to_msecs(jiffies - start_wait_jiffies));
+}
+
 static void mxt_sensor_sleep(struct mxt_data *data)
 {
 	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
@@ -3135,10 +3157,8 @@ static void mxt_initialize_regulator(struct mxt_data *data)
 		goto err_null_regulator;
 	}
 
-	data->regulator_avdd = devm_regulator_get(&client->dev, "avdd");
 	if (IS_ERR(data->regulator_avdd)) {
-	mxt_wait_for_completion(data, &data->bl_completion,
-					MXT_POWERON_DELAY);
+	mxt_wait_for_idle(data);
 	}
 
 	dev_info(&client->dev,
@@ -3439,7 +3459,7 @@ retry_probe:
 		info->version >> 4, info->version & 0xf,
 		info->build, info->object_num);
 
-	data->state = APPMODE;
+	mxt_acquire_irq(data);
 
 	/* Get object table information */
 	error = mxt_get_object_table(data);
@@ -6118,7 +6138,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 			gpio_set_value(data->pdata->gpio_reset, 0);
 			udelay(1500);
 			gpio_set_value(data->pdata->gpio_reset, 1);
-			msleep(50);
+			mxt_wait_for_idle(data);
 			/* now it's safe to enable interrupts */
 			mxt_irq_enable(data, true);
 		}
