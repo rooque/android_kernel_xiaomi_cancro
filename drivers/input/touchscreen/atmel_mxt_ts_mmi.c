@@ -4285,15 +4285,9 @@ static void mxt_pre_use_work(struct work_struct* work)
 			break;
 	}
 
-	mxt_do_calibration(data);
-}
-
-static ssize_t mxt_self_tune_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
 {
 	u8 nv_backup;
 	struct mxt_data *data = dev_get_drvdata(dev);
-
 	if (sscanf(buf, "%hhu", &nv_backup) == 1)
 		mxt_self_tune(data, nv_backup);
 	else
