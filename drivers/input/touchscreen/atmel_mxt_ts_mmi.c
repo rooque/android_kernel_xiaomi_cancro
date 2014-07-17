@@ -1336,9 +1336,13 @@ static void mxt_proc_t9_messages(struct mxt_data *data, u8 *message)
 	int amplitude;
 	u8 vector;
 	int id;
+	struct timespec hw_time = ktime_to_timespec(ktime_get());
 
 	if (!input_dev || data->driver_paused)
 		return;
+
+	input_event(input_dev, EV_SYN, SYN_TIME_SEC, hw_time.tv_sec);
+	input_event(input_dev, EV_SYN, SYN_TIME_NSEC, hw_time.tv_nsec);
 
 	id = message[0] - data->T9_reportid_min;
 
@@ -1783,7 +1787,7 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 	unsigned char number_of_fingers_actually_touching;
 	static char finger_register[32];
 #endif
-	int index = 0;
+	struct timespec hw_time = ktime_to_timespec(ktime_get());
 	int finger_state = 0;
 
 	if (!input_dev || data->driver_paused)
@@ -1795,7 +1799,9 @@ static void mxt_proc_t100_messages(struct mxt_data *data, u8 *message)
 		dev_err(dev, "invalid touch id %d, total num touch is %d\n",
 			id, data->num_touchids);
 		return;
-	}
+
+	input_event(input_dev, EV_SYN, SYN_TIME_SEC, hw_time.tv_sec);
+	input_event(input_dev, EV_SYN, SYN_TIME_NSEC, hw_time.tv_nsec);
 
 	if (id == 0) {
 		status = message[1];
