@@ -182,6 +182,9 @@ enum t100_type {
 	MXT_T100_TYPE_FINGER		= 1,
 	MXT_T100_TYPE_PASSIVE_STYLUS	= 2,
 	MXT_T100_TYPE_ACTIVE_STYLUS	= 3,
+	MXT_T100_TYPE_HOVERING_FINGER	= 4,
+	MXT_T100_TYPE_GLOVE		= 5,
+	MXT_T100_TYPE_LARGE_TOUCH	= 6,
 };
 
 /* Gen2 Active Stylus */
@@ -1004,11 +1007,15 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	y = (message[5] << 8) | message[4];
 
 	if (status & MXT_T100_DETECT) {
-		active = true;
 		type = (status & MXT_T100_TYPE_MASK) >> 4;
 
 		switch (type) {
+		case MXT_T100_TYPE_HOVERING_FINGER:
+			hover = true;
+			/* fall through */
 		case MXT_T100_TYPE_FINGER:
+		case MXT_T100_TYPE_GLOVE:
+			active = true;
 			tool = MT_TOOL_FINGER;
 
 			if (data->t100_aux_area)
@@ -1021,6 +1028,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			break;
 
 		case MXT_T100_TYPE_PASSIVE_STYLUS:
+			active = true;
 			tool = MT_TOOL_PEN;
 
 			/* Passive stylus is reported with size zero so
@@ -1035,6 +1043,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		case MXT_T100_TYPE_ACTIVE_STYLUS:
 			if (message[6] & MXT_T107_STYLUS_HOVER) {
 				/* stylus detected, position available */
+				active = true;
 				tool = MT_TOOL_PEN;
 				major = MXT_TOUCH_MAJOR_DEFAULT;
 				eraser = message[6] & MXT_T107_STYLUS_BUTTON0;
@@ -1046,12 +1055,14 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 				} else {
 					hover = true;
 				}
-			} else {
-				/* detected but position cannot be determined */
-				active = false;
 			}
 
 			break;
+
+		case MXT_T100_TYPE_LARGE_TOUCH:
+			/* Ignore suppressed touch */
+			break;
+
 		default:
 			dev_dbg(dev, "Unexpected T100 type\n");
 			return;
