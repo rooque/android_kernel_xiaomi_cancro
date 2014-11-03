@@ -49,8 +49,6 @@ enum {
 /* Version */
 #define MXT_VER_20		20
 #define MXT_VER_21		21
-#include <linux/workqueue.h>
-static void mxt_queued_resume(struct work_struct *w);
 #define MXT_MAX_BUTTONS		8
 
 /* Firmware files */
@@ -704,7 +702,6 @@ struct mxt_i2c_address_pair {
 
 static const struct mxt_i2c_address_pair mxt_i2c_addresses[] = {
 #ifdef BOOTLOADER_1664_1188
-	struct work_struct resume_work;
 	{ 0x27, 0x4b },
 #else
 	{ 0x24, 0x4a },
@@ -6480,7 +6477,6 @@ static int mxt_init_mode(struct mxt_data *data, struct mxt_patchset **pmode)
 	if (error)
 		goto err_free_object;
 
-	INIT_WORK(&data->resume_work, mxt_queued_resume);
 			pdata->irqflags, client->dev.driver->name, data);
 	if (error) {
 		dev_err(&client->dev, "Error %d registering irq\n", error);
@@ -6620,25 +6616,14 @@ static int __devexit mxt_remove(struct i2c_client *client)
 		gpio_free (pdata->irq_gpio);
 
 	if (gpio_is_valid(pdata->reset_gpio))
-static void mxt_queued_resume(struct work_struct *w)
-{
-	struct mxt_data *mxt_dev_data =
-			container_of(w, struct mxt_data, resume_work);
-	mxt_resume(&mxt_dev_data->client->dev);
-	dev_dbg(&mxt_dev_data->client->dev, "DISPLAY-ON\n");
-}
-
 
 	kfree(data);
 	data = NULL;
 		if (*blank == FB_BLANK_UNBLANK ||
 				(*blank == FB_BLANK_VSYNC_SUSPEND &&
 				mxt_dev_data->suspended)) {
-			queue_work(system_wq, &mxt_dev_data->resume_work);
-			dev_dbg(&mxt_dev_data->client->dev, "queued RESUME\n");
-			/* ensure no work left in queue */
-			cancel_work_sync(&mxt_dev_data->resume_work);
-
+			mxt_resume(&mxt_dev_data->client->dev);
+			dev_dbg(&mxt_dev_data->client->dev, "DISPLAY-ON\n");
 
 	return 0;
 }
