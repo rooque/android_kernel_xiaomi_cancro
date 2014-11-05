@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
+#include <linux/semaphore.h>
 #ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
 #include "touchx.h"
 #endif
@@ -711,13 +712,47 @@ static const struct mxt_i2c_address_pair mxt_i2c_addresses[] = {
 	{ 0x34, 0x5a },
 	{ 0x35, 0x5b },
 #endif
+	struct semaphore crit_section_lock;
 };
+
+#define mxt_unlock(s)	{\
+		up(s);\
+		pr_debug("critical section RELEASED (count %d)\n",\
+				((struct semaphore *)(s))->count);\
+	}
+
+static void mxt_lock(struct semaphore *sem)
+{
+	ktime_t after, before;
+	int retval, elapsed_time;
+
+	retval = down_trylock(sem);
+	if (!retval)
+		goto done;
+	/* will have to wait */
+	before = ktime_get();
+	retval = down_interruptible(sem);
+	if (retval) {
+		pr_err("cannot lock critical section\n");
+		return;
+	}
+	after = ktime_get();
+	elapsed_time = (ktime_to_timeval(after).tv_sec -
+			ktime_to_timeval(before).tv_sec) * 1000;
+	elapsed_time += (ktime_to_timeval(after).tv_usec -
+			ktime_to_timeval(before).tv_usec) / 1000;
+	pr_info("lock delayed by %d ms\n", elapsed_time);
+done:
+	pr_debug("critical section LOCKED (count %d)\n", sem->count);
+}
+
 
 #ifdef CONFIG_TOUCHSCREEN_TOUCHX_BASE
 struct touchxs touchxp;
 EXPORT_SYMBOL(touchxp);
 #endif
 
+static int mxt_suspend(struct device *dev);
 static int mxt_resume(struct device *dev);
 static int mxt_get_sensor_state(struct mxt_data *data);
 static int mxt_init_t7_power_cfg(struct mxt_data *data);
@@ -5061,10 +5096,13 @@ static int mxt_get_diag_data(struct mxt_data *data, char *buf)
 	return 0;
 }
 
-static ssize_t mxt_diagnostic_show(struct device *dev,
-		mxt_resume(&data->client->dev);
-{
-	struct mxt_data *data = dev_get_drvdata(dev);
+	/* FW reflash cannot complete while touch is supended, due
+	   to possible I2C bus collision with Sensor Hub in AoD
+
+		if (data->suspended)
+			mxt_resume(&data->client->dev); */
+
+	mxt_lock(&data->crit_section_lock);
 	int error;
 	int i = 0;
 	int len = 0;
@@ -5103,10 +5141,7 @@ static ssize_t mxt_diagnostic_show(struct device *dev,
 
 	mxt_set_sensor_state(data, STATE_INIT);
 
-	kfree(tmp_buffer);
-	dev_dbg(dev, "critical section LOCK\n");
 }
-
 static ssize_t mxt_diagnostic_store(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
@@ -5305,9 +5340,11 @@ initialize:
 
 	data->is_recalib_available = false;
 	error = mxt_initialize(data);
+	if (error) {
+		mxt_set_sensor_state(data, STATE_BL);
+	}
 
-	queue_work(data->work_queue, &data->pre_use_work);
-	dev_dbg(dev, "critical section RELEASE\n");
+	mxt_unlock(&data->crit_section_lock);
 
 
 				struct device_attribute *attr,
@@ -5507,9 +5544,8 @@ static int mxt_input_open(struct input_dev *dev)
 	} else if (!data->in_bootloader)
 		mxt_hw_reset(hw);
 
-		mxt_do_calibration(data);
+	mxt_unlock(&data->crit_section_lock);
 	dev_dbg(dev, "MXT started\n");
-	dev_dbg(&data->client->dev, "critical section RELEASE\n");
 
 	return 0;
 }
@@ -5524,8 +5560,7 @@ static void mxt_input_close(struct input_dev *dev)
 	if (data->use_regulator)
 		mxt_regulator_disable(data);
 
-	mutex_lock(&data->crit_section_lock);
-	dev_dbg(&data->client->dev, "critical section LOCK\n");
+	mxt_lock(&data->crit_section_lock);
 }
 
 static void mxt_clear_touch_event(struct mxt_data *data)
@@ -6460,7 +6495,7 @@ static int mxt_init_mode(struct mxt_data *data, struct mxt_patchset **pmode)
 		pr_err("reset gpio = %d\n", (int)gpio_get_value(pdata->reset_gpio));
 		pr_err("chg gpio = %d\n", (int)gpio_get_value(pdata->irq_gpio));
 
-		if (error != -ENOENT)
+	sema_init(&data->crit_section_lock, 1);
 			goto err_disable_regulator;
 		else {
 			error = mxt_update_fw_store(&client->dev, NULL,
@@ -6573,10 +6608,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 		regulator_disable(data->regulator_vdd);
 	static char ud_stats[PAGE_SIZE];
 	if (!data->suspended) {
-		/* if driver is in critical section at the moment,
-		 * mutex_lock can block until mutex gets released */
-		mutex_lock(&data->crit_section_lock);
-		dev_dbg(&data->client->dev, "critical section LOCK\n");
+		mxt_lock(&data->crit_section_lock);
 
 		mxt_set_sensor_state(data, STATE_SUSPEND);
 		mxt_reset_slots(data);
@@ -6601,8 +6633,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 		} else if (!data->in_bootloader)
 			mxt_hw_reset(data);
 
-		mutex_unlock(&data->crit_section_lock);
-		dev_dbg(&data->client->dev, "critical section RELEASE\n");
+		mxt_unlock(&data->crit_section_lock);
 	}
 
 	if (data->in_bootloader)
