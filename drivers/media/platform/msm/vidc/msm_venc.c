@@ -792,8 +792,6 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 		.default_value = 0,
 		.step = 1,
 		.qmenu = NULL,
-<<<<<<< HEAD
-=======
 		.cluster = 0,
 	},
 	{
@@ -835,7 +833,6 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 		.default_value = 1,
 		.step = 1,
 		.qmenu = NULL,
->>>>>>> 9519613... msm: vidc: Add support for setting initial qp
 	}
 };
 
