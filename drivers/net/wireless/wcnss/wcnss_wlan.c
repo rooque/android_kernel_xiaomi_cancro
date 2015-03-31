@@ -22,6 +22,8 @@
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
 #include <linux/gpio.h>
+#include <linux/if.h>
+#include <linux/random.h>
 #include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -46,6 +48,8 @@
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
 #include "wcnss_prealloc.h"
 #endif
+
+#include <asm/bootinfo.h>
 
 #define DEVICE "wcnss_wlan"
 #define CTRL_DEVICE "wcnss_ctrl"
@@ -182,7 +186,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 
 #define WCNSS_DEF_WLAN_RX_BUFF_COUNT		1024
 #define WCNSS_VBATT_THRESHOLD		3500000
-#define WCNSS_VBATT_GUARD		20000
+#define WCNSS_VBATT_GUARD		200
 #define WCNSS_VBATT_HIGH		3700000
 #define WCNSS_VBATT_LOW			3300000
 
@@ -263,7 +267,10 @@ static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
 
-#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#define NVBIN_FILE_X3    "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#define NVBIN_FILE_X4    "wlan/prima/WCNSS_qcom_wlan_nv_x4.bin"
+#define NVBIN_FILE_X4LTE "wlan/prima/WCNSS_qcom_wlan_nv_x4lte.bin"
+#define NVBIN_FILE_X5    "wlan/prima/WCNSS_qcom_wlan_nv_x5.bin"
 
 /*
  * On SMD channel 4K of maximum data can be transferred, including message
@@ -1835,10 +1842,8 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 		smd_read(penv->smd_ch, NULL, len);
 		return;
 	}
-	if (len < sizeof(struct smd_msg_hdr)) {
-		pr_err("wcnss: incomplete header available len = %d\n", len);
+	if (len <= 0)
 		return;
-	}
 
 	rc = smd_read(penv->smd_ch, buf, sizeof(struct smd_msg_hdr));
 	if (rc < sizeof(struct smd_msg_hdr)) {
@@ -2011,6 +2016,25 @@ static void wcnss_send_pm_config(struct work_struct *worker)
 
 static DECLARE_RWSEM(wcnss_pm_sem);
 
+void wcnss_get_nv_file(char *nv_file, int size)
+{
+	int hw_ver;
+
+	hw_ver = get_hw_version_major();
+	if (hw_ver == 4) {
+		/* X4 LTE P2 and later hw have version 4.5 and above */
+		if (get_hw_version_minor() >= 5)
+			strlcpy(nv_file, NVBIN_FILE_X4LTE, size);
+		else
+			strlcpy(nv_file, NVBIN_FILE_X4, size);
+	}
+	else if (hw_ver == 5)
+		strlcpy(nv_file, NVBIN_FILE_X5, size);
+	else
+		strlcpy(nv_file, NVBIN_FILE_X3, size);
+}
+EXPORT_SYMBOL(wcnss_get_nv_file);
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -2024,14 +2048,18 @@ static void wcnss_nvbin_dnld(void)
 	unsigned int nv_blob_size = 0;
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
+	char xiaomi_wlan_nv_file[40];
 
 	down_read(&wcnss_pm_sem);
 
-	ret = request_firmware(&nv, NVBIN_FILE, dev);
+	wcnss_get_nv_file(xiaomi_wlan_nv_file, sizeof(xiaomi_wlan_nv_file));
+	pr_info("wcnss: Get nv file from %s\n", xiaomi_wlan_nv_file);
+
+	ret = request_firmware(&nv, xiaomi_wlan_nv_file, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
-		pr_err("wcnss: %s: request_firmware failed for %s(ret = %d)\n",
-			__func__, NVBIN_FILE, ret);
+		pr_err("wcnss: %s: request_firmware failed for %s\n",
+			__func__, xiaomi_wlan_nv_file);
 		goto out;
 	}
 
@@ -2777,21 +2805,22 @@ exit:
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle)
 {
-	pr_info("%s: wcnss notification event: %lu\n", __func__, code);
+	pr_debug("%s: wcnss notification event: %lu\n", __func__, code);
 
-         if (code == SUBSYS_BEFORE_SHUTDOWN) {
-                 penv->is_shutdown = 1;
-                 wcnss_disable_pc_add_req();
-                 schedule_delayed_work(&penv->wcnss_pm_qos_del_req,
-                                 msecs_to_jiffies(WCNSS_PM_QOS_TIMEOUT));
-         } else if (code == SUBSYS_POWERUP_FAILURE) {
-                 wcnss_pronto_log_debug_regs();
-                 wcnss_disable_pc_remove_req();
-         } else if (SUBSYS_AFTER_POWERUP == code)
-                 penv->is_shutdown = 0;
+	if (SUBSYS_POWERUP_FAILURE == code)
+		wcnss_pronto_log_debug_regs();
+	else if (SUBSYS_BEFORE_SHUTDOWN == code)
+		penv->is_shutdown = 1;
+	else if (SUBSYS_AFTER_POWERUP == code)
+		penv->is_shutdown = 0;
 
 	return NOTIFY_DONE;
 }
+
+static struct notifier_block wnb = {
+	.notifier_call = wcnss_notif_cb,
+};
+
 
 static const struct file_operations wcnss_node_fops = {
 	.owner = THIS_MODULE,

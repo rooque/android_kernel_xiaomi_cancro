@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,7 +45,8 @@
 #define QPNP_PON_REASON1(base)			(base + 0x8)
 #define QPNP_PON_WARM_RESET_REASON1(base)	(base + 0xA)
 #define QPNP_PON_WARM_RESET_REASON2(base)	(base + 0xB)
-#define QPNP_POFF_REASON1(base)			(base + 0xC)
+#define QPNP_PON_POFF_REASON1(base)		(base + 0xC)
+#define QPNP_PON_POFF_REASON2(base)		(base + 0xD)
 #define QPNP_PON_KPDPWR_S1_TIMER(base)		(base + 0x40)
 #define QPNP_PON_KPDPWR_S2_TIMER(base)		(base + 0x41)
 #define QPNP_PON_KPDPWR_S2_CNTL(base)		(base + 0x42)
@@ -67,8 +69,8 @@
 
 #define QPNP_PON_S3_SRC_KPDPWR			0
 #define QPNP_PON_S3_SRC_RESIN			1
-#define QPNP_PON_S3_SRC_KPDPWR_AND_RESIN	2
-#define QPNP_PON_S3_SRC_KPDPWR_OR_RESIN		3
+#define QPNP_PON_S3_SRC_KPDPWR_OR_RESIN		2
+#define QPNP_PON_S3_SRC_KPDPWR_AND_RESIN	3
 #define QPNP_PON_S3_SRC_MASK			0x3
 
 #define QPNP_PON_WARM_RESET_TFT			BIT(4)
@@ -112,6 +114,7 @@
 #define QPNP_PON_MAX_DBC_US			(USEC_PER_SEC * 2)
 
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
+#define QPNP_PON_REV_B				0x01
 
 enum pon_type {
 	PON_KPDPWR,
@@ -234,7 +237,17 @@ int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 		return rc;
 	}
 
-	if (reg == PON_REV2_VALUE)
+	/*
+	 * Set PON_DEBOUNCE_TIMER to 500ms before power off
+	 */
+	rc = qpnp_pon_masked_write(pon, QPNP_PON_DBC_CTL(pon->base),
+						QPNP_PON_DBC_DELAY_MASK, 0x5);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "Unable to set PON debounce\n");
+		return rc;
+	}
+
+	if (reg == 0x00)
 		rst_en_reg = QPNP_PON_PS_HOLD_RST_CTL(pon->base);
 	else
 		rst_en_reg = QPNP_PON_PS_HOLD_RST_CTL2(pon->base);
@@ -313,6 +326,42 @@ int qpnp_pon_is_warm_reset(void)
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_pon_is_warm_reset);
+
+int qpnp_pon_is_lpk(void)
+{
+	struct qpnp_pon *pon = sys_reset_dev;
+	int rc;
+	u8 reg = 0;
+
+	if (!pon)
+		return 0;
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			QPNP_PON_POFF_REASON1(pon->base), &reg, 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev,
+			"Unable to read addr=%x, rc(%d)\n",
+			QPNP_PON_POFF_REASON1(pon->base), rc);
+		return 0;
+	}
+
+	//The bit 7 is 1, means the off reason is powerkey
+	if (reg & 0x80)
+		return 1;
+
+	dev_info(&pon->spmi->dev,
+			"hw_reset reason1 is 0x%x\n",
+			reg);
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			QPNP_PON_POFF_REASON2(pon->base), &reg, 1);
+
+	dev_info(&pon->spmi->dev,
+			"hw_reset reason2 is 0x%x\n",
+			reg);
+	return 0;
+}
+EXPORT_SYMBOL(qpnp_pon_is_lpk);
 
 /**
  * qpnp_pon_wd_config - Disable the wd in a warm reset.
@@ -843,19 +892,14 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 				}
 			}
 
-			/* If the value read from REVISION2 register is 0x00,
-			 * then there is a single register to control s2 reset.
-			 * Otherwise there are separate registers for s2 reset
-			 * type and s2 reset enable
-			 */
-			if (pon_ver == PON_REV2_VALUE) {
-				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
-					QPNP_PON_KPDPWR_S2_CNTL(pon->base);
-			} else {
+			if (pon_ver == QPNP_PON_REV_B) {
 				cfg->s2_cntl_addr =
 					QPNP_PON_KPDPWR_S2_CNTL(pon->base);
 				cfg->s2_cntl2_addr =
 					QPNP_PON_KPDPWR_S2_CNTL2(pon->base);
+			} else {
+				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
+					QPNP_PON_KPDPWR_S2_CNTL(pon->base);
 			}
 
 			break;
@@ -920,14 +964,14 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 				}
 			}
 
-			if (pon_ver == PON_REV2_VALUE) {
-				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
-					QPNP_PON_RESIN_S2_CNTL(pon->base);
-			} else {
+			if (pon_ver == QPNP_PON_REV_B) {
 				cfg->s2_cntl_addr =
 					QPNP_PON_RESIN_S2_CNTL(pon->base);
 				cfg->s2_cntl2_addr =
 					QPNP_PON_RESIN_S2_CNTL2(pon->base);
+			} else {
+				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
+					QPNP_PON_RESIN_S2_CNTL(pon->base);
 			}
 
 			break;
@@ -961,14 +1005,14 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 				}
 			}
 
-			if (pon_ver == PON_REV2_VALUE) {
-				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
-				QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon->base);
-			} else {
+			if (pon_ver == QPNP_PON_REV_B) {
 				cfg->s2_cntl_addr =
 				QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon->base);
 				cfg->s2_cntl2_addr =
 				QPNP_PON_KPDPWR_RESIN_S2_CNTL2(pon->base);
+			} else {
+				cfg->s2_cntl_addr = cfg->s2_cntl2_addr =
+				QPNP_PON_KPDPWR_RESIN_S2_CNTL(pon->base);
 			}
 
 			break;
