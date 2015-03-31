@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,7 +45,12 @@
 #define QPNP_PON_REASON1(base)			(base + 0x8)
 #define QPNP_PON_WARM_RESET_REASON1(base)	(base + 0xA)
 #define QPNP_PON_WARM_RESET_REASON2(base)	(base + 0xB)
+<<<<<<< HEAD
 #define QPNP_POFF_REASON1(base)			(base + 0xC)
+=======
+#define QPNP_PON_POFF_REASON1(base)		(base + 0xC)
+#define QPNP_PON_POFF_REASON2(base)		(base + 0xD)
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 #define QPNP_PON_KPDPWR_S1_TIMER(base)		(base + 0x40)
 #define QPNP_PON_KPDPWR_S2_TIMER(base)		(base + 0x41)
 #define QPNP_PON_KPDPWR_S2_CNTL(base)		(base + 0x42)
@@ -234,7 +240,21 @@ int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 		return rc;
 	}
 
+<<<<<<< HEAD
 	if (reg == PON_REV2_VALUE)
+=======
+	/*
+	 * Set PON_DEBOUNCE_TIMER to 500ms before power off
+	 */
+	rc = qpnp_pon_masked_write(pon, QPNP_PON_DBC_CTL(pon->base),
+						QPNP_PON_DBC_DELAY_MASK, 0x5);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "Unable to set PON debounce\n");
+		return rc;
+	}
+
+	if (reg == 0x00)
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		rst_en_reg = QPNP_PON_PS_HOLD_RST_CTL(pon->base);
 	else
 		rst_en_reg = QPNP_PON_PS_HOLD_RST_CTL2(pon->base);
@@ -313,6 +333,42 @@ int qpnp_pon_is_warm_reset(void)
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_pon_is_warm_reset);
+
+int qpnp_pon_is_lpk(void)
+{
+	struct qpnp_pon *pon = sys_reset_dev;
+	int rc;
+	u8 reg = 0;
+
+	if (!pon)
+		return 0;
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			QPNP_PON_POFF_REASON1(pon->base), &reg, 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev,
+			"Unable to read addr=%x, rc(%d)\n",
+			QPNP_PON_POFF_REASON1(pon->base), rc);
+		return 0;
+	}
+
+	//The bit 7 is 1, means the off reason is powerkey
+	if (reg & 0x80)
+		return 1;
+
+	dev_info(&pon->spmi->dev,
+			"hw_reset reason1 is 0x%x\n",
+			reg);
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			QPNP_PON_POFF_REASON2(pon->base), &reg, 1);
+
+	dev_info(&pon->spmi->dev,
+			"hw_reset reason2 is 0x%x\n",
+			reg);
+	return 0;
+}
+EXPORT_SYMBOL(qpnp_pon_is_lpk);
 
 /**
  * qpnp_pon_wd_config - Disable the wd in a warm reset.
@@ -1108,8 +1164,16 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	struct resource *pon_resource;
 	struct device_node *itr = NULL;
 	u32 delay = 0, s3_debounce = 0;
+<<<<<<< HEAD
 	int rc, sys_reset, index;
 	u8 pon_sts = 0, buf[2];
+=======
+	int rc, sys_reset;
+#ifdef KERNEL_PON_REASON_DETECTION
+	int index;
+	u8 pon_sts = 0;
+#endif
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	const char *s3_src;
 	u8 s3_src_reg;
 	u16 poff_sts = 0;
@@ -1153,6 +1217,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	}
 	pon->base = pon_resource->start;
 
+#ifdef KERNEL_PON_REASON_DETECTION
 	/* PON reason */
 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 				QPNP_PON_REASON1(pon->base), &pon_sts, 1);
@@ -1164,6 +1229,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	boot_reason = ffs(pon_sts);
 	index = ffs(pon_sts) - 1;
 	cold_boot = !qpnp_pon_is_warm_reset();
+<<<<<<< HEAD
 	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
 		dev_info(&pon->spmi->dev,
 			"PMIC@SID%d Power-on reason: Unknown and '%s' boot\n",
@@ -1193,6 +1259,12 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 				"PMIC@SID%d: Power-off reason: %s\n",
 				pon->spmi->sid,
 				qpnp_poff_reason[index]);
+=======
+	pr_info("PMIC@SID%d Power-on reason: %s and '%s' boot\n",
+		pon->spmi->sid, index ? qpnp_pon_reason[index - 1] :
+		"Unknown", cold_boot ? "cold" : "warm");
+#endif
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	rc = of_property_read_u32(pon->spmi->dev.of_node,
 				"qcom,pon-dbc-delay", &delay);

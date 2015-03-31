@@ -22,6 +22,8 @@
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
 #include <linux/gpio.h>
+#include <linux/if.h>
+#include <linux/random.h>
 #include <linux/wakelock.h>
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -46,6 +48,8 @@
 #ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
 #include "wcnss_prealloc.h"
 #endif
+
+#include <asm/bootinfo.h>
 
 #define DEVICE "wcnss_wlan"
 #define CTRL_DEVICE "wcnss_ctrl"
@@ -256,6 +260,7 @@ static struct wcnss_pmic_dump wcnss_pmic_reg_dump[] = {
 	{"LVS1", 0x060},
 };
 
+<<<<<<< HEAD
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle);
 
@@ -264,6 +269,12 @@ static struct notifier_block wnb = {
 };
 
 #define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+=======
+#define NVBIN_FILE_X3    "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#define NVBIN_FILE_X4    "wlan/prima/WCNSS_qcom_wlan_nv_x4.bin"
+#define NVBIN_FILE_X4LTE "wlan/prima/WCNSS_qcom_wlan_nv_x4lte.bin"
+#define NVBIN_FILE_X5    "wlan/prima/WCNSS_qcom_wlan_nv_x5.bin"
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 /*
  * On SMD channel 4K of maximum data can be transferred, including message
@@ -2011,6 +2022,25 @@ static void wcnss_send_pm_config(struct work_struct *worker)
 
 static DECLARE_RWSEM(wcnss_pm_sem);
 
+void wcnss_get_nv_file(char *nv_file, int size)
+{
+	int hw_ver;
+
+	hw_ver = get_hw_version_major();
+	if (hw_ver == 4) {
+		/* X4 LTE P2 and later hw have version 4.5 and above */
+		if (get_hw_version_minor() >= 5)
+			strlcpy(nv_file, NVBIN_FILE_X4LTE, size);
+		else
+			strlcpy(nv_file, NVBIN_FILE_X4, size);
+	}
+	else if (hw_ver == 5)
+		strlcpy(nv_file, NVBIN_FILE_X5, size);
+	else
+		strlcpy(nv_file, NVBIN_FILE_X3, size);
+}
+EXPORT_SYMBOL(wcnss_get_nv_file);
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -2024,14 +2054,23 @@ static void wcnss_nvbin_dnld(void)
 	unsigned int nv_blob_size = 0;
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
+	char xiaomi_wlan_nv_file[40];
 
 	down_read(&wcnss_pm_sem);
 
-	ret = request_firmware(&nv, NVBIN_FILE, dev);
+	wcnss_get_nv_file(xiaomi_wlan_nv_file, sizeof(xiaomi_wlan_nv_file));
+	pr_info("wcnss: Get nv file from %s\n", xiaomi_wlan_nv_file);
+
+	ret = request_firmware(&nv, xiaomi_wlan_nv_file, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
+<<<<<<< HEAD
 		pr_err("wcnss: %s: request_firmware failed for %s(ret = %d)\n",
 			__func__, NVBIN_FILE, ret);
+=======
+		pr_err("wcnss: %s: request_firmware failed for %s\n",
+			__func__, xiaomi_wlan_nv_file);
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		goto out;
 	}
 

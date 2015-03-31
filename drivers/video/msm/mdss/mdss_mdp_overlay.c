@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+=======
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1224,7 +1229,10 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	int ret = 0;
 	int sd_in_pipe = 0;
 	bool need_cleanup = false;
+<<<<<<< HEAD
 	LIST_HEAD(destroy_pipes);
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	ATRACE_BEGIN(__func__);
 	if (ctl->shared_lock) {
@@ -1276,7 +1284,10 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_cleanup, list) {
 		mdss_mdp_pipe_queue_data(pipe, NULL);
 		mdss_mdp_mixer_pipe_unstage(pipe);
+<<<<<<< HEAD
 		list_move(&pipe->list, &destroy_pipes);
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		need_cleanup = true;
 	}
 
@@ -1299,6 +1310,10 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 		atomic_set(&mfd->kickoff_pending, 0);
 		wake_up_all(&mfd->kickoff_wait_q);
 	}
+<<<<<<< HEAD
+=======
+	mutex_unlock(&mfd->lock);
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	if (IS_ERR_VALUE(ret))
 		goto commit_fail;
@@ -1308,7 +1323,10 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 
 	ATRACE_BEGIN("display_wait4comp");
 	ret = mdss_mdp_display_wait4comp(mdp5_data->ctl);
+<<<<<<< HEAD
 	ATRACE_END("display_wait4comp");
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	mutex_lock(&mdp5_data->ov_lock);
 
 	if (ret == 0) {
@@ -1329,6 +1347,10 @@ commit_fail:
 	ATRACE_END("overlay_cleanup");
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 	mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_FLUSHED);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	if (need_cleanup) {
 		atomic_set(&mfd->kickoff_pending, 0);
 		wake_up_all(&mfd->kickoff_wait_q);
@@ -1764,6 +1786,7 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 		goto pan_display_error;
 	}
 
+<<<<<<< HEAD
 	ret = mdss_mdp_overlay_start(mfd);
 	if (ret) {
 		pr_err("unable to start overlay %d (%d)\n", mfd->index, ret);
@@ -1776,6 +1799,8 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 		goto pan_display_error;
 	}
 
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	ret = mdss_mdp_overlay_get_fb_pipe(mfd, &pipe,
 					MDSS_MDP_MIXER_MUX_LEFT);
 	if (ret) {
@@ -1785,6 +1810,18 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 
 	if (mdss_mdp_pipe_map(pipe)) {
 		pr_err("unable to map base pipe\n");
+		goto pan_display_error;
+	}
+
+	ret = mdss_mdp_overlay_start(mfd);
+	if (ret) {
+		pr_err("unable to start overlay %d (%d)\n", mfd->index, ret);
+		goto pan_display_error;
+	}
+
+	ret = mdss_iommu_ctrl(1);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("IOMMU attach failed\n");
 		goto pan_display_error;
 	}
 

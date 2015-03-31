@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+=======
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +26,9 @@
 #include <linux/leds.h>
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
+#include <linux/fs.h>
+#include <asm/fcntl.h>
+#include <asm/uaccess.h>
 
 #include "mdss_dsi.h"
 
@@ -98,10 +106,21 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 }
 
 static char dcs_cmd[2] = {0x54, 0x00}; /* DTYPE_DCS_READ */
+static char rbuf[10];
 static struct dsi_cmd_desc dcs_read_cmd = {
 	{DTYPE_DCS_READ, 1, 0, 1, 5, sizeof(dcs_cmd)},
 	dcs_cmd
 };
+
+void mdss_dsi_dcs_read_cb(u32 cb_result)
+{
+	u32 i;
+
+	pr_info("%s: 0x%x. \n", __func__, cb_result);
+	for (i=0; i<cb_result; i++)
+		pr_debug("0x%x ", rbuf[i]);
+	pr_debug("\n");
+}
 
 u32 mdss_dsi_panel_cmd_read(struct mdss_dsi_ctrl_pdata *ctrl, char cmd0,
 		char cmd1, void (*fxn)(int), char *rbuf, int len)
@@ -122,7 +141,7 @@ u32 mdss_dsi_panel_cmd_read(struct mdss_dsi_ctrl_pdata *ctrl, char cmd0,
 	 * blocked here, until call back called
 	 */
 
-	return 0;
+	return rbuf[0];
 }
 
 static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
@@ -169,6 +188,31 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
+static int mdss_dsi_request_pongpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int rc = 0;
+
+	if (ctrl_pdata->panel_incell) {
+		if (gpio_is_valid(ctrl_pdata->tpldo_gpio)) {
+			rc = gpio_request(ctrl_pdata->tpldo_gpio, "tpldo_gpio");
+			if (rc)
+				pr_err("request tpldo gpio failed, rc=%d\n", rc);
+		}
+		if (gpio_is_valid(ctrl_pdata->tpwdn_gpio)) {
+			rc += gpio_request(ctrl_pdata->tpwdn_gpio, "tpwdn_gpio");
+			if (rc)
+				pr_err("request tpwdn gpio failed, rc=%d\n", rc);
+		}
+		if (gpio_is_valid(ctrl_pdata->vddio_gpio)) {
+			rc += gpio_request(ctrl_pdata->vddio_gpio, "vddio_gpio");
+			if (rc)
+				pr_err("request vddio gpio failed, rc=%d\n", rc);
+		}
+	}
+
+	return rc;
+}
+
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
@@ -196,6 +240,7 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			goto mode_gpio_err;
 		}
 	}
+
 	return rc;
 
 mode_gpio_err:
@@ -207,10 +252,71 @@ disp_en_gpio_err:
 	return rc;
 }
 
+int mdss_dsi_panel_pon(struct mdss_panel_data *pdata, int enable)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	static bool pongpio_request_done;
+	int rc = 0;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+
+	if (!ctrl_pdata->panel_incell) {
+		pr_info("%s: Need not pon\n", __func__);
+		return rc;
+	}
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	pr_info("%s: enable = %d\n", __func__, enable);
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+
+	if (!pongpio_request_done && enable) {	/* first time and enable */
+		rc = mdss_dsi_request_pongpios(ctrl_pdata);
+		if (rc) {
+			pr_err("gpio request failed\n");
+			return rc;
+		}
+		pongpio_request_done = true;
+	}
+
+	pr_info("set power %d\n", enable);
+	if (enable) {
+		if (gpio_is_valid(ctrl_pdata->tpldo_gpio))		/* TP_VCI */
+			gpio_direction_output((ctrl_pdata->tpldo_gpio), 1);
+		udelay(1);
+		if (gpio_is_valid(ctrl_pdata->tpwdn_gpio))
+			gpio_direction_output((ctrl_pdata->tpwdn_gpio), 1);
+		udelay(6);
+		if (gpio_is_valid(ctrl_pdata->vddio_gpio))		/* VDDIO */
+			gpio_direction_output((ctrl_pdata->vddio_gpio), 1);
+	} else {
+		if (gpio_is_valid(ctrl_pdata->vddio_gpio))
+			gpio_direction_output((ctrl_pdata->vddio_gpio), 0);
+		udelay(6);
+		if (gpio_is_valid(ctrl_pdata->tpwdn_gpio))
+			gpio_direction_output((ctrl_pdata->tpwdn_gpio), 0);
+		if (gpio_is_valid(ctrl_pdata->tpldo_gpio))	/* Keep tpldo always on*/
+			gpio_direction_output((ctrl_pdata->tpldo_gpio), 1);
+	}
+
+	return rc;
+}
+
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
+	static bool gpio_request_done;
 	int i, rc = 0;
 
 	if (pdata == NULL) {
@@ -232,15 +338,16 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		return rc;
 	}
 
-	pr_debug("%s: enable = %d\n", __func__, enable);
+	pr_info("%s: enable = %d\n", __func__, enable);
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
-	if (enable) {
+	if (!gpio_request_done && enable) {
 		rc = mdss_dsi_request_gpios(ctrl_pdata);
 		if (rc) {
 			pr_err("gpio request failed\n");
 			return rc;
 		}
+<<<<<<< HEAD
 		if (!pinfo->panel_power_on) {
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
@@ -251,6 +358,20 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				if (pdata->panel_info.rst_seq[++i])
 					usleep(pinfo->rst_seq[i] * 1000);
 			}
+=======
+		gpio_request_done = true;
+	}
+
+	if (enable) {
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+
+		for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+			gpio_direction_output((ctrl_pdata->rst_gpio),
+				pdata->panel_info.rst_seq[i]);
+			if (pdata->panel_info.rst_seq[++i])
+				usleep(pdata->panel_info.rst_seq[i] * 1000);
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		}
 
 		if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
@@ -266,12 +387,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
-		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
-			gpio_free(ctrl_pdata->disp_en_gpio);
-		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
-		gpio_free(ctrl_pdata->rst_gpio);
+		if (gpio_is_valid(ctrl_pdata->rst_gpio))
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}
@@ -412,6 +531,182 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	}
 }
 
+static char string_to_hex(const char *str)
+{
+	char val_l = 0;
+	char val_h = 0;
+
+	if (str[0] >= '0' && str[0] <= '9')
+		val_h = str[0] - '0';
+	else if (str[0] <= 'f' && str[0] >= 'a')
+		val_h = 10 + str[0] - 'a';
+	else if (str[0] <= 'F' && str[0] >= 'A')
+		val_h = 10 + str[0] - 'A';
+
+	if (str[1] >= '0' && str[1] <= '9')
+		val_l = str[1]-'0';
+	else if (str[1] <= 'f' && str[1] >= 'a')
+		val_l = 10 + str[1] - 'a';
+	else if (str[1] <= 'F' && str[1] >= 'A')
+		val_l = 10 + str[1] - 'A';
+
+	return (val_h << 4) | val_l;
+}
+
+static int string_merge_into_buf(const char *str, int len, char *buf)
+{
+	int buf_size = 0;
+	int i = 0;
+	const char *p = str;
+
+	while (i < len) {
+		if (((p[0] >= '0' && p[0] <= '9') ||
+			(p[0] <= 'f' && p[0] >= 'a') ||
+			(p[0] <= 'F' && p[0] >= 'A'))
+			&& ((i + 1) < len)) {
+			buf[buf_size] = string_to_hex(p);
+			buf_size++;
+			i += 2;
+			p += 2;
+		} else {
+			i++;
+			p++;
+		}
+	}
+	return buf_size;
+}
+
+static int parse_to_dcs_cmds(struct dsi_panel_cmds *pcmds)
+{
+	#define PANEL_INITIAL_CODE "/data/lcd.txt"
+
+	static int flag = 0;
+	int blen = 0, len;
+	char *data, *buf, *bp;
+	struct dsi_ctrl_hdr *dchdr;
+	int i, cnt, file_size;
+
+	int ret = 0;
+	struct file *filp = NULL;
+	mm_segment_t old_fs;
+	const char *file_name = PANEL_INITIAL_CODE;
+
+	if (flag)
+		return 0;
+	else
+		flag = 1;
+
+	filp = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR(filp)) {
+		pr_err("%s open failed\n", file_name);
+		return -EINVAL;
+	}
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	file_size = filp->f_dentry->d_inode->i_size;
+
+	data = kzalloc(file_size, GFP_KERNEL);
+	if (!data) {
+		set_fs(old_fs);
+		filp_close(filp, NULL);
+		return -ENOMEM;
+	}
+	buf = kzalloc(file_size/2, GFP_KERNEL);
+	if (!buf) {
+		kfree(data);
+		set_fs(old_fs);
+		filp_close(filp, NULL);
+		return -ENOMEM;
+	}
+
+	ret = filp->f_op->read(filp, data, file_size, &filp->f_pos);
+	if (ret < 0) {
+		pr_err("%s read failed, return %d\n", file_name, ret);
+		goto exit_free;
+	}
+
+	blen = string_merge_into_buf(data, file_size, buf);
+	pr_debug("%s: file size is %d, buf size is %d\n", __func__, file_size, blen);
+	for (i = 0; i < blen; i++)
+		pr_debug("0x%02x ", buf[i]);
+	pr_debug("\n");
+	if (blen <= 0)
+		goto exit_free;
+	/* free the memory alloced before */
+	if (pcmds->buf) {
+		kfree(pcmds->buf);
+		pcmds->buf = NULL;
+	}
+
+	if (pcmds->cmds) {
+		kfree(pcmds->cmds);
+		pcmds->cmds = NULL;
+	}
+
+	/* scan dcs commands */
+	bp = buf;
+	len = blen;
+	cnt = 0;
+	while (len > sizeof(*dchdr)) {
+		dchdr = (struct dsi_ctrl_hdr *)bp;
+		dchdr->dlen = ntohs(dchdr->dlen);
+		if (dchdr->dlen > len) {
+			pr_err("%s: dtsi cmd=%x error, len=%d",
+				__func__, dchdr->dtype, dchdr->dlen);
+			goto exit_free;
+		}
+		bp += sizeof(*dchdr);
+		len -= sizeof(*dchdr);
+		bp += dchdr->dlen;
+		len -= dchdr->dlen;
+		cnt++;
+	}
+
+	if (len != 0) {
+		pr_err("%s: dcs_cmd=%x len=%d error!",
+				__func__, buf[0], blen);
+		goto exit_free;
+	}
+
+	pcmds->cmds = kzalloc(cnt * sizeof(struct dsi_cmd_desc),
+						GFP_KERNEL);
+	if (!pcmds->cmds)
+		goto exit_free;
+
+	pcmds->cmd_cnt = cnt;
+	pcmds->buf = buf;
+	pcmds->blen = blen;
+
+	bp = buf;
+	len = blen;
+	for (i = 0; i < cnt; i++) {
+		dchdr = (struct dsi_ctrl_hdr *)bp;
+		len -= sizeof(*dchdr);
+		bp += sizeof(*dchdr);
+		pcmds->cmds[i].dchdr = *dchdr;
+		pcmds->cmds[i].payload = bp;
+		bp += dchdr->dlen;
+		len -= dchdr->dlen;
+	}
+
+
+	pr_debug("%s: dcs_cmd=%x len=%d, cmd_cnt=%d link_state=%d\n", __func__,
+		pcmds->buf[0], pcmds->blen, pcmds->cmd_cnt, pcmds->link_state);
+
+	set_fs(old_fs);
+	filp_close(filp, NULL);
+	return 0;
+
+exit_free:
+	set_fs(old_fs);
+	filp_close(filp, NULL);
+	kfree(buf);
+	kfree(data);
+	return -ENOMEM;
+}
+
+
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
 	struct mipi_panel_info *mipi;
@@ -426,12 +721,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 				panel_data);
 	mipi  = &pdata->panel_info.mipi;
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_info("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 
-	pr_debug("%s:-\n", __func__);
+	pr_info("%s:-\n", __func__);
 	return 0;
 }
 
@@ -448,14 +743,18 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_info("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	mipi  = &pdata->panel_info.mipi;
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
 
-	pr_debug("%s:-\n", __func__);
+	mdss_dsi_panel_cmd_read(ctrl, 0x04, 0x00, (void *)mdss_dsi_dcs_read_cb, rbuf, 8);
+
+	pr_info("%s:-\n", __func__);
+	if (ctrl->on_cmds_tuning)
+		parse_to_dcs_cmds(&ctrl->on_cmds);
 	return 0;
 }
 
@@ -779,6 +1078,7 @@ static int mdss_dsi_parse_reset_seq(struct device_node *np,
 	return 0;
 }
 
+<<<<<<< HEAD
 static void mdss_dsi_parse_roi_alignment(struct device_node *np,
 		struct mdss_panel_info *pinfo)
 {
@@ -942,6 +1242,8 @@ static void mdss_dsi_parse_dfps_config(struct device_node *pan_node,
 	return;
 }
 
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 static int mdss_panel_parse_dt(struct device_node *np,
 			struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -1226,6 +1528,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
+<<<<<<< HEAD
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
 			"qcom,mdss-dsi-panel-status-command",
@@ -1252,6 +1555,8 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dfps_config(np, ctrl_pdata);
 
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	return 0;
 
 error:
@@ -1264,7 +1569,13 @@ int mdss_dsi_panel_init(struct device_node *node,
 {
 	int rc = 0;
 	static const char *panel_name;
+<<<<<<< HEAD
 	struct mdss_panel_info *pinfo;
+=======
+	bool cont_splash_enabled;
+	bool partial_update_enabled;
+	int panel_id = 0;
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	if (!node || !ctrl_pdata) {
 		pr_err("%s: Invalid arguments\n", __func__);
@@ -1281,6 +1592,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 	else
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
 
+	rc = of_property_read_u32(node, "qcom,mdss-dsi-panel-id", &panel_id);
+	pr_info("panel_id %d\n", panel_id);
+
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {
 		pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
@@ -1294,6 +1608,12 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	pinfo->dynamic_switch_pending = false;
 	pinfo->is_lpm_mode = false;
+
+	rc = of_property_read_u32(node, "qcom,mdss-dsi-panel-sleepwrmod", &ctrl_pdata->panel_sleepwrmod);
+	pr_info("%s: sleep power mode %d\n", __func__, ctrl_pdata->panel_sleepwrmod);
+
+	ctrl_pdata->on_cmds_tuning = of_property_read_bool(node,
+					"qcom,mdss-dsi-on-command-tuning");
 
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;

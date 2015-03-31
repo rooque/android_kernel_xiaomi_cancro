@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+=======
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2920,7 +2925,7 @@ int mdss_mdp_argc_config(struct mdp_pgc_lut_data *config,
 		argc_addr = mdss_mdp_get_mixer_addr_off(dspp_num) +
 			MDSS_MDP_REG_LM_GC_LUT_BASE;
 		pgc_ptr = &mdss_pp_res->argc_disp_cfg[disp_num];
-		if (config->flags & MDP_PP_OPS_WRITE)
+		if (!(config->flags & MDP_PP_OPS_READ))
 			mdss_pp_res->pp_disp_flags[disp_num] |=
 				PP_FLAGS_DIRTY_ARGC;
 		break;
@@ -2928,7 +2933,7 @@ int mdss_mdp_argc_config(struct mdp_pgc_lut_data *config,
 		argc_addr = mdss_mdp_get_dspp_addr_off(dspp_num) +
 					MDSS_MDP_REG_DSPP_GC_BASE;
 		pgc_ptr = &mdss_pp_res->pgc_disp_cfg[disp_num];
-		if (config->flags & MDP_PP_OPS_WRITE)
+		if (!(config->flags & MDP_PP_OPS_READ))
 			mdss_pp_res->pp_disp_flags[disp_num] |=
 				PP_FLAGS_DIRTY_PGC;
 		break;
@@ -4919,8 +4924,19 @@ static int  pp_ad_attenuate_bl(struct mdss_ad_info *ad, u32 bl, u32 *bl_out)
 		return -EINVAL;
 	}
 
+<<<<<<< HEAD
 	pr_debug("bl_in = %d\n", bl);
 	/* map panel backlight range to AD backlight range */
+=======
+	ret = mdss_mdp_get_ad(mfd, &ad);
+	if (ret || !ad || !ad->bl_mfd || !ad->bl_mfd->panel_info ||
+		!ad->bl_mfd->panel_info->bl_max || !ad->bl_att_lut) {
+		pr_err("Failed to get the ad.\n");
+		return ret;
+	}
+	pr_info("bl_in = %d\n", bl);
+	/*map panel backlight range to AD backlight range*/
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	linear_map(bl, &bl, ad->bl_mfd->panel_info->bl_max,
 		MDSS_MDP_AD_BL_SCALE);
 
@@ -5009,7 +5025,7 @@ static int pp_ad_linearize_bl(struct mdss_ad_info *ad, u32 bl, u32 *bl_out,
 	linear_map(*bl_out, bl_out, MDSS_MDP_AD_BL_SCALE,
 		ad->bl_mfd->panel_info->bl_max);
 
-	pr_debug("bl_out = %d\n", *bl_out);
+	pr_info("bl_out = %d\n", *bl_out);
 	return 0;
 }
 

@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008-2015, The Linux Foundation. All rights reserved.
+=======
+/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -234,8 +239,11 @@ struct msm_fb_data_type {
 	u32 dcm_state;
 	struct list_head proc_list;
 	u32 wait_for_kickoff;
+<<<<<<< HEAD
 	struct ion_client *fb_ion_client;
 	struct ion_handle *fb_ion_handle;
+=======
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 };
 
 static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)

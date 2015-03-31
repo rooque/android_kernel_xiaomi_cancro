@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -403,8 +404,13 @@ static long msm_vfe32_reset_hardware(struct vfe_device *vfe_dev ,
 		reset_type = ISP_RST_HARD;
 	}
 	rst_val = msm_vfe32_reset_values[reset_type];
+<<<<<<< HEAD
 	if (blocking) {
 		init_completion(&vfe_dev->reset_complete);
+=======
+	init_completion(&vfe_dev->reset_complete);
+	if (blocking) {
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		msm_camera_io_w_mb(rst_val, vfe_dev->vfe_base + 0x4);
 		rc = wait_for_completion_timeout(
 		   &vfe_dev->reset_complete, msecs_to_jiffies(50));

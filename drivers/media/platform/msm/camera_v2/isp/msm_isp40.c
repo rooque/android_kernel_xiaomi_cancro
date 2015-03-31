@@ -1,4 +1,8 @@
 /* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+<<<<<<< HEAD
+=======
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1111,7 +1115,7 @@ static void msm_vfe40_axi_clear_wm_xbar_reg(
 		vfe_dev->vfe_base + VFE40_XBAR_BASE(wm));
 }
 
-#define MSM_ISP40_TOTAL_WM_UB 819
+#define MSM_ISP40_TOTAL_WM_UB 1140
 
 static void msm_vfe40_cfg_axi_ub_equal_default(
 	struct vfe_device *vfe_dev)
@@ -1192,6 +1196,7 @@ static long msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 	uint32_t blocking)
 {
 	long rc = 0;
+<<<<<<< HEAD
 	uint32_t axi_busy_flag = true;
 	/* Keep only restart mask and halt mask*/
 	msm_camera_io_w(BIT(31), vfe_dev->vfe_base + 0x28);
@@ -1212,6 +1217,21 @@ static long msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 		}
 	}
 	msm_camera_io_w_mb(0x0, vfe_dev->vfe_base + 0x2C0);
+=======
+	/* Keep only restart mask and halt mask*/
+	msm_camera_io_w(BIT(31), vfe_dev->vfe_base + 0x28);
+	msm_camera_io_w(BIT(8), vfe_dev->vfe_base + 0x2C);
+	/* Clear IRQ Status*/
+	msm_camera_io_w(0xFFFFFFFF, vfe_dev->vfe_base + 0x30);
+	msm_camera_io_w(0xFEFFFFFF, vfe_dev->vfe_base + 0x34);
+	init_completion(&vfe_dev->halt_complete);
+	msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x2C0);
+	if (blocking) {
+		atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
+		rc = wait_for_completion_interruptible_timeout(
+			&vfe_dev->halt_complete, msecs_to_jiffies(500));
+	}
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	return rc;
 }
 

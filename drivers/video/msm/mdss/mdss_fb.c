@@ -2,7 +2,12 @@
  * Core MDSS framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
+<<<<<<< HEAD
  * Copyright (c) 2008-2015, The Linux Foundation. All rights reserved.
+=======
+ * Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015 XiaoMi, Inc.
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -100,7 +105,11 @@ static int __mdss_fb_display_thread(void *data);
 static int mdss_fb_pan_idle(struct msm_fb_data_type *mfd);
 static int mdss_fb_send_panel_event(struct msm_fb_data_type *mfd,
 					int event, void *arg);
+<<<<<<< HEAD
 static void mdss_fb_set_mdp_sync_pt_threshold(struct msm_fb_data_type *mfd);
+=======
+
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 void mdss_fb_no_update_notify_timer_cb(unsigned long data)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)data;
@@ -930,11 +939,19 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 
 	if ((pdata) && (pdata->set_backlight)) {
+<<<<<<< HEAD
 		if (mfd->mdp.ad_calc_bl)
 			(*mfd->mdp.ad_calc_bl)(mfd, temp, &temp,
 					&bl_notify_needed);
 		if (bl_notify_needed)
 			mdss_fb_bl_update_notify(mfd);
+=======
+		if (mfd->mdp.ad_attenuate_bl && is_bl_changed) {
+			ret = (*mfd->mdp.ad_attenuate_bl)(bkl_lvl, &temp, mfd);
+			if (ret)
+				pr_err("Failed to attenuate BL\n");
+		}
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 		mfd->bl_level_prev_scaled = mfd->bl_level_scaled;
 		if (!IS_CALIB_MODE_BL(mfd))
@@ -990,6 +1007,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int ret = 0;
+	int last_mode = FB_BLANK_UNBLANK;
 
 	if (!op_enable)
 		return -EPERM;
@@ -1059,6 +1077,12 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		}
 		break;
 	}
+
+	if ((blank_mode == last_mode) && (blank_mode == FB_BLANK_POWERDOWN)) {
+		pr_info("%s: turn panel off failed, sysmat_writecmd triggered !!!\n",
+			__func__);
+	}
+	last_mode = blank_mode;
 	/* Notify listeners */
 	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 
@@ -2762,8 +2786,12 @@ static int __ioctl_wait_idle(struct msm_fb_data_type *mfd, u32 cmd)
 		(cmd != MSMFB_OVERLAY_VSYNC_CTRL) &&
 		(cmd != MSMFB_ASYNC_BLIT) &&
 		(cmd != MSMFB_BLIT) &&
+<<<<<<< HEAD
 		(cmd != MSMFB_NOTIFY_UPDATE) &&
 		(cmd != MSMFB_OVERLAY_PREPARE)) {
+=======
+		(cmd != MSMFB_NOTIFY_UPDATE)) {
+>>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 		ret = mdss_fb_pan_idle(mfd);
 	}
 
