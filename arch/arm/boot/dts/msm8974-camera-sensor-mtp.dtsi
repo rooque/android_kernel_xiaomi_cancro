@@ -344,7 +344,6 @@
 		qcom,sensor-mode = <1>;
 		qcom,cci-master = <0>;
 	};
-
 	qcom,camera@0 {
 		cell-index = <0>;
 		compatible = "qcom,camera";
