@@ -29,9 +29,8 @@
 #define PMIC_VERSION_REG        0x0105
 #define PMIC_VERSION_REV4_REG   0x0103
 
-#define PMIC8941_V1_REV4	0x01
-#define PMIC8941_V2_REV4	0x02
-#define PON_REV2_VALUE		0x00
+#define PMIC8941_V1_REV4        0x01
+#define PMIC8941_V2_REV4        0x02
 
 /* Common PNP defines */
 #define QPNP_PON_REVISION2(base)		(base + 0x01)
@@ -97,12 +96,6 @@
 #define QPNP_PON_RESET_EN			BIT(7)
 #define QPNP_PON_POWER_OFF_MASK			0xF
 
-#define QPNP_PON_S3_SRC_KPDPWR			0
-#define QPNP_PON_S3_SRC_RESIN			1
-#define QPNP_PON_S3_SRC_KPDPWR_AND_RESIN	2
-#define QPNP_PON_S3_SRC_KPDPWR_OR_RESIN		3
-#define QPNP_PON_S3_SRC_MASK			0x3
-
 /* Ranges */
 #define QPNP_PON_S1_TIMER_MAX			10256
 #define QPNP_PON_S2_TIMER_MAX			2000
@@ -110,8 +103,7 @@
 #define QPNP_PON_S3_DBC_DELAY_MASK		0x07
 #define QPNP_PON_RESET_TYPE_MAX			0xF
 #define PON_S1_COUNT_MAX			0xF
-#define QPNP_PON_MIN_DBC_US			(USEC_PER_SEC / 64)
-#define QPNP_PON_MAX_DBC_US			(USEC_PER_SEC * 2)
+#define PON_REASON_MAX				8
 
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
 #define QPNP_PON_REV_B				0x01
@@ -163,26 +155,6 @@ static const char * const qpnp_pon_reason[] = {
 	[5] = "Triggered from PON1 (secondary PMIC)",
 	[6] = "Triggered from CBL (external power supply)",
 	[7] = "Triggered from KPD (power key press)",
-};
-
-static const char * const qpnp_poff_reason[] = {
-	[0] = "Triggered from SOFT (Software)",
-	[1] = "Triggered from PS_HOLD (PS_HOLD/MSM controlled shutdown)",
-	[2] = "Triggered from PMIC_WD (PMIC watchdog)",
-	[3] = "Triggered from GP1 (Keypad_Reset1)",
-	[4] = "Triggered from GP2 (Keypad_Reset2)",
-	[5] = "Triggered from KPDPWR_AND_RESIN"
-		"(Simultaneous power key and reset line)",
-	[6] = "Triggered from RESIN_N (Reset line/Volume Down Key)",
-	[7] = "Triggered from KPDPWR_N (Long Power Key hold)",
-	[8] = "N/A",
-	[9] = "N/A",
-	[10] = "N/A",
-	[11] = "Triggered from CHARGER (Charger ENUM_TIMER, BOOT_DONE)",
-	[12] = "Triggered from TFT (Thermal Fault Tolerance)",
-	[13] = "Triggered from UVLO (Under Voltage Lock Out)",
-	[14] = "Triggered from OTST3 (Overtemp)",
-	[15] = "Triggered from STAGE3 (Stage 3 reset)",
 };
 
 static int
@@ -1152,11 +1124,13 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	struct resource *pon_resource;
 	struct device_node *itr = NULL;
 	u32 delay = 0, s3_debounce = 0;
-	int rc, sys_reset, index;
-	u8 pon_sts = 0, buf[2];
+	int rc, sys_reset;
+#ifdef KERNEL_PON_REASON_DETECTION
+	int index;
+	u8 pon_sts = 0;
+#endif
 	const char *s3_src;
 	u8 s3_src_reg;
-	u16 poff_sts = 0;
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);
@@ -1197,6 +1171,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	}
 	pon->base = pon_resource->start;
 
+#ifdef KERNEL_PON_REASON_DETECTION
 	/* PON reason */
 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 				QPNP_PON_REASON1(pon->base), &pon_sts, 1);
@@ -1206,37 +1181,15 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	}
 
 	boot_reason = ffs(pon_sts);
-	index = ffs(pon_sts) - 1;
-	cold_boot = !qpnp_pon_is_warm_reset();
-	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
-		dev_info(&pon->spmi->dev,
-			"PMIC@SID%d Power-on reason: Unknown and '%s' boot\n",
-			pon->spmi->sid, cold_boot ? "cold" : "warm");
-	else
-		dev_info(&pon->spmi->dev,
-			"PMIC@SID%d Power-on reason: %s and '%s' boot\n",
-			pon->spmi->sid, qpnp_pon_reason[index],
-			cold_boot ? "cold" : "warm");
+	index = ffs(pon_sts);
+	if ((index > PON_REASON_MAX) || (index < 0))
+		index = 0;
 
-	/* POFF reason */
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
-				QPNP_POFF_REASON1(pon->base),
-				buf, 2);
-	if (rc) {
-		dev_err(&pon->spmi->dev, "Unable to read POFF_RESASON regs\n");
-		return rc;
-	}
-	poff_sts = buf[0] | (buf[1] << 8);
-	index = ffs(poff_sts) - 1;
-	if (index >= ARRAY_SIZE(qpnp_poff_reason) || index < 0)
-		dev_info(&pon->spmi->dev,
-				"PMIC@SID%d: Unknown power-off reason\n",
-				pon->spmi->sid);
-	else
-		dev_info(&pon->spmi->dev,
-				"PMIC@SID%d: Power-off reason: %s\n",
-				pon->spmi->sid,
-				qpnp_poff_reason[index]);
+	cold_boot = !qpnp_pon_is_warm_reset();
+	pr_info("PMIC@SID%d Power-on reason: %s and '%s' boot\n",
+		pon->spmi->sid, index ? qpnp_pon_reason[index - 1] :
+		"Unknown", cold_boot ? "cold" : "warm");
+#endif
 
 	rc = of_property_read_u32(pon->spmi->dev.of_node,
 				"qcom,pon-dbc-delay", &delay);
@@ -1300,9 +1253,6 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	else /* default combination */
 		s3_src_reg = QPNP_PON_S3_SRC_KPDPWR_AND_RESIN;
 
-	/* S3 source is a write once register. If the register has
-	 * been configured by bootloader then this operation will
-	 * not be effective. */
 	rc = qpnp_pon_masked_write(pon, QPNP_PON_S3_SRC(pon->base),
 			QPNP_PON_S3_SRC_MASK, s3_src_reg);
 	if (rc) {
