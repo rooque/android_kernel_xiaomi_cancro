@@ -49,16 +49,12 @@
 #include <mach/memory.h>
 #include <mach/msm_memtypes.h>
 #include <mach/rpm-regulator-smd.h>
-#include <mach/scm.h>
 
 #include "mdss.h"
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
 #include "mdss_panel.h"
 #include "mdss_debug.h"
-
-#define CREATE_TRACE_POINTS
-#include "mdss_mdp_trace.h"
 
 struct mdss_data_type *mdss_res;
 
@@ -81,8 +77,6 @@ struct msm_mdp_interface mdp5 = {
 
 #define IB_QUOTA 800000000
 #define AB_QUOTA 800000000
-
-#define MEM_PROTECT_SD_CTRL 0xF
 
 static DEFINE_SPINLOCK(mdp_lock);
 static DEFINE_MUTEX(mdp_clk_lock);
@@ -332,7 +326,7 @@ static int mdss_mdp_bus_scale_register(struct mdss_data_type *mdata)
 		pr_debug("register bus_hdl=%x\n", mdata->bus_hdl);
 	}
 
-	return mdss_bus_scale_set_quota(MDSS_HW_MDP, AB_QUOTA, IB_QUOTA);
+	return mdss_mdp_bus_scale_set_quota(AB_QUOTA, IB_QUOTA);
 }
 
 static void mdss_mdp_bus_scale_unregister(struct mdss_data_type *mdata)
@@ -397,29 +391,6 @@ int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 
 	return msm_bus_scale_client_update_request(mdss_res->bus_hdl,
 		new_uc_idx);
-}
-
-int mdss_bus_scale_set_quota(int client, u64 ab_quota, u64 ib_quota)
-{
-	int rc = 0;
-	int i;
-	u64 total_ab = 0;
-	u64 total_ib = 0;
-
-	mutex_lock(&bus_bw_lock);
-
-	mdss_res->ab[client] = ab_quota;
-	mdss_res->ib[client] = ib_quota;
-	for (i = 0; i < MDSS_MAX_HW_BLK; i++) {
-		total_ab += mdss_res->ab[i];
-		total_ib = max(total_ib, mdss_res->ib[i]);
-	}
-
-	rc = mdss_mdp_bus_scale_set_quota(total_ab, total_ib);
-
-	mutex_unlock(&bus_bw_lock);
-
-	return rc;
 }
 
 static inline u32 mdss_mdp_irq_mask(u32 intr_type, u32 intf_num)
@@ -763,6 +734,8 @@ void mdss_mdp_clk_ctrl(int enable, int isr)
 		if (mdata->vsync_ena)
 			mdss_mdp_clk_update(MDSS_CLK_MDP_VSYNC, enable);
 
+		mdss_bus_bandwidth_ctrl(enable);
+
 		if (!enable)
 			pm_runtime_put(&mdata->pdev->dev);
 	}
@@ -848,8 +821,6 @@ int mdss_iommu_attach(struct mdss_data_type *mdata)
 	struct mdss_iommu_map_type *iomap;
 	int i, rc = 0;
 
-	MDSS_XLOG(mdata->iommu_attached);
-
 	if (mdata->iommu_attached) {
 		pr_debug("mdp iommu already attached\n");
 		goto end;
@@ -886,8 +857,6 @@ int mdss_iommu_dettach(struct mdss_data_type *mdata)
 	struct iommu_domain *domain;
 	struct mdss_iommu_map_type *iomap;
 	int i;
-
-	MDSS_XLOG(mdata->iommu_attached);
 
 	if (!mdata->iommu_attached) {
 		pr_debug("mdp iommu already dettached\n");
@@ -1231,7 +1200,6 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mdata);
 	mdss_res = mdata;
 	mutex_init(&mdata->reg_lock);
-	atomic_set(&mdata->sd_client_count, 0);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mdp_phys");
 	if (!res) {
@@ -2335,23 +2303,6 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 	if (rc)
 		pr_debug("max bandwidth (high) property not specified\n");
 
-	mdata->nclk_lvl = mdss_mdp_parse_dt_prop_len(pdev,
-					"qcom,mdss-clk-levels");
-
-	if (mdata->nclk_lvl) {
-		mdata->clock_levels = kzalloc(sizeof(u32) * mdata->nclk_lvl,
-							GFP_KERNEL);
-		if (!mdata->clock_levels) {
-			pr_err("no mem assigned for mdata clock_levels\n");
-			return -ENOMEM;
-		}
-
-		rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-clk-levels",
-			mdata->clock_levels, mdata->nclk_lvl);
-		if (rc)
-			pr_debug("clock levels not found\n");
-	}
-
 	return 0;
 }
 
@@ -2586,78 +2537,19 @@ static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 		pr_debug("Enable MDP FS\n");
 		if (!mdata->fs_ena) {
 			regulator_enable(mdata->fs);
-			if (!mdata->ulps) {
-				mdss_mdp_cx_ctrl(mdata, true);
-				mdss_mdp_batfet_ctrl(mdata, true);
-			}
+			mdss_mdp_cx_ctrl(mdata, true);
+			mdss_mdp_batfet_ctrl(mdata, true);
 		}
 		mdata->fs_ena = true;
 	} else {
 		pr_debug("Disable MDP FS\n");
 		if (mdata->fs_ena) {
 			regulator_disable(mdata->fs);
-			if (!mdata->ulps) {
-				mdss_mdp_cx_ctrl(mdata, false);
-				mdss_mdp_batfet_ctrl(mdata, false);
-			}
+			mdss_mdp_cx_ctrl(mdata, false);
+			mdss_mdp_batfet_ctrl(mdata, false);
 		}
 		mdata->fs_ena = false;
 	}
-}
-
-/**
- * mdss_mdp_footswitch_ctrl_ulps() - MDSS GDSC control with ULPS feature
- * @on: 1 to turn on footswitch, 0 to turn off footswitch
- * @dev: framebuffer device node
- *
- * MDSS GDSC can be voted off during idle-screen usecase for MIPI DSI command
- * mode displays with Ultra-Low Power State (ULPS) feature enabled. Upon
- * subsequent frame update, MDSS GDSC needs to turned back on and hw state
- * needs to be restored. It returns error if footswitch control API
- * fails.
- */
-int mdss_mdp_footswitch_ctrl_ulps(int on, struct device *dev)
-{
-	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
-	int rc = 0;
-
-	pr_debug("called on=%d\n", on);
-	if (on) {
-		pm_runtime_get_sync(dev);
-		rc = mdss_iommu_ctrl(1);
-		if (IS_ERR_VALUE(rc)) {
-			pr_err("mdss iommu attach failed rc=%d\n", rc);
-			return rc;
-		}
-		mdss_hw_init(mdata);
-		mdata->ulps = false;
-		mdss_iommu_ctrl(0);
-	} else {
-		mdata->ulps = true;
-		pm_runtime_put_sync(dev);
-	}
-
-	return 0;
-}
-
-int mdss_mdp_secure_display_ctrl(unsigned int enable)
-{
-	struct sd_ctrl_req {
-		unsigned int enable;
-	} __attribute__ ((__packed__)) request;
-	unsigned int resp = -1;
-	int ret = 0;
-
-	request.enable = enable;
-
-	ret = scm_call(SCM_SVC_MP, MEM_PROTECT_SD_CTRL,
-		&request, sizeof(request), &resp, sizeof(resp));
-	pr_debug("scm_call MEM_PROTECT_SD_CTRL(%u): ret=%d, resp=%x",
-				enable, ret, resp);
-	if (ret)
-		return ret;
-
-	return resp;
 }
 
 static inline int mdss_mdp_suspend_sub(struct mdss_data_type *mdata)
