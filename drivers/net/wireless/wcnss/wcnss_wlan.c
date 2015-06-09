@@ -2817,10 +2817,6 @@ static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block wnb = {
-	.notifier_call = wcnss_notif_cb,
-};
-
 
 static const struct file_operations wcnss_node_fops = {
 	.owner = THIS_MODULE,
