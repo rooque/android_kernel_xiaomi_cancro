@@ -353,10 +353,6 @@ static void msm_vfe40_init_hardware_reg(struct vfe_device *vfe_dev)
 	msm_camera_io_w_mb(0xFEFFFFFF, vfe_dev->vfe_base + 0x34);
 	msm_camera_io_w(vfe_dev->stats_data.stats_mask,
 		vfe_dev->vfe_base + 0x44);
-	msm_camera_io_w(1, vfe_dev->vfe_base + 0x24);
-	msm_camera_io_w(0, vfe_dev->vfe_base + 0x30);
-	msm_camera_io_w_mb(0, vfe_dev->vfe_base + 0x34);
-	msm_camera_io_w(1, vfe_dev->vfe_base + 0x24);
 }
 
 static void msm_vfe40_process_reset_irq(struct vfe_device *vfe_dev,
@@ -945,11 +941,6 @@ static void msm_vfe40_axi_cfg_wm_reg(
 	uint8_t plane_idx)
 {
 	uint32_t val;
-
-	struct msm_vfe_axi_shared_data *axi_data =
-		&vfe_dev->axi_data;
-	uint32_t burst_len = axi_data->burst_len;
-
 	uint32_t wm_base = VFE40_WM_BASE(stream_info->wm[plane_idx]);
 
 	if (!stream_info->frame_based) {
@@ -1128,10 +1119,6 @@ static void msm_vfe40_cfg_axi_ub_equal_slicing(
 	int i;
 	uint32_t ub_offset = 0;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-	uint32_t axi_equal_slice_ub =
-		(vfe_dev->vfe_ub_size - VFE40_STATS_SIZE)/
-			(axi_data->hw_info->num_wm - 1);
-
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
 		msm_camera_io_w(ub_offset << 16 | (VFE40_EQUAL_SLICE_UB - 1),
 			vfe_dev->vfe_base + VFE40_WM_BASE(i) + 0x10);
@@ -1161,7 +1148,6 @@ static long msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 	uint32_t blocking)
 {
 	long rc = 0;
-	uint32_t axi_busy_flag = true;
 	/* Keep only restart mask and halt mask*/
 	msm_camera_io_w(BIT(31), vfe_dev->vfe_base + 0x28);
 	msm_camera_io_w(BIT(8), vfe_dev->vfe_base + 0x2C);
@@ -1171,14 +1157,10 @@ static long msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 	init_completion(&vfe_dev->halt_complete);
 	msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x2C0);
 	if (blocking) {
-		init_completion(&vfe_dev->halt_complete);
-		/* Halt AXI Bus Bridge */
-		msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x2C0);
 		atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
 		rc = wait_for_completion_interruptible_timeout(
 			&vfe_dev->halt_complete, msecs_to_jiffies(500));
 	}
-	msm_camera_io_w_mb(0x0, vfe_dev->vfe_base + 0x2C0);
 	return rc;
 }
 

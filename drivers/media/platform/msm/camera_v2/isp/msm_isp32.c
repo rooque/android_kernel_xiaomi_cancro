@@ -161,13 +161,12 @@ static void msm_vfe32_init_hardware_reg(struct vfe_device *vfe_dev)
 	msm_camera_io_w( 0x10000000,vfe_dev->vfe_base + VFE32_RDI_BASE(2));
 	msm_camera_io_w(0x0, vfe_dev->vfe_base + VFE32_XBAR_BASE(0));
 	msm_camera_io_w(0x0, vfe_dev->vfe_base + VFE32_XBAR_BASE(4));
-        //XIAOMI START
 	for (i = 0; i<=6; i++) {
 		wm_base = VFE32_WM_BASE(i);
 		msm_camera_io_w(0x0, vfe_dev->vfe_base + wm_base);
 		wm_base = VFE32_WM_BASE(i);
 		msm_camera_io_w(0x0, vfe_dev->vfe_base + wm_base);
-	}//XIAOMI END
+	}
 
 }
 
@@ -393,10 +392,11 @@ static uint32_t msm_vfe32_reset_values[ISP_RST_MAX] =
 };
 
 static long msm_vfe32_reset_hardware(struct vfe_device *vfe_dev ,
-				enum msm_isp_reset_type reset_type)
+	enum msm_isp_reset_type reset_type, uint32_t blocking)
 {
 
 	uint32_t rst_val;
+	long rc = 0;
 	if (reset_type >= ISP_RST_MAX) {
 		pr_err("%s: Error Invalid parameter\n", __func__);
 		reset_type = ISP_RST_HARD;
@@ -522,7 +522,6 @@ static void msm_vfe32_cfg_framedrop(struct vfe_device *vfe_dev,
 		msm_camera_io_w(framedrop_period, vfe_dev->vfe_base + 0x518);
 		msm_camera_io_w(framedrop_pattern, vfe_dev->vfe_base + 0x51C);
 		msm_camera_io_w(framedrop_pattern, vfe_dev->vfe_base + 0x520);
-        //XIAOMI START
 	} else if (stream_info->stream_src == RDI_INTF_0 ||
 			stream_info->stream_src == RDI_INTF_1 ||
 			stream_info->stream_src == RDI_INTF_2) {
@@ -548,7 +547,7 @@ static void msm_vfe32_cfg_framedrop(struct vfe_device *vfe_dev,
 			rdi_reg_cfg = rdi_reg_cfg | val;
 			msm_camera_io_w(rdi_reg_cfg, vfe_dev->vfe_base +
 			VFE32_RDI_BASE(stream_info->stream_src - VFE_SRC_MAX));
-		}//XIAOMI END
+		}
 	}
 	msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x260);
 }
