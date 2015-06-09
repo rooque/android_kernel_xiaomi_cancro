@@ -395,7 +395,6 @@ static int32_t msm_actuator_move_focus(
 		return -EFAULT;
 	}
 
-
 	CDBG("called, dir %d, num_steps %d\n", dir, num_steps);
 	if(num_steps == 65536 && a_ctrl->cam_name == ACTUATOR_MAIN_CAM_2 && g_ois_cam_mode == ACTUATOR_CAM_MODE_CAMERA) {
 		/* OIS reset to half shutter mode only in Snapshot Mode */
