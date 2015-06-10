@@ -5112,6 +5112,10 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("pixel_clk", mdss_pclk1_clk.c, "fd922e00.qcom,mdss_dsi"),
 	CLK_LOOKUP("mdp_core_clk", mdss_mdp_clk.c, "fd922800.qcom,mdss_dsi"),
 	CLK_LOOKUP("mdp_core_clk", mdss_mdp_clk.c, "fd922e00.qcom,mdss_dsi"),
+	CLK_LOOKUP("core_mmss_clk", mmss_misc_ahb_clk.c,
+		"fd922800.qcom,mdss_dsi"),
+	CLK_LOOKUP("core_mmss_clk", mmss_misc_ahb_clk.c,
+		"fd922e00.qcom,mdss_dsi"),
 	CLK_LOOKUP("iface_clk", mdss_ahb_clk.c, "fd922100.qcom,hdmi_tx"),
 	CLK_LOOKUP("alt_iface_clk", mdss_hdmi_ahb_clk.c,
 		"fd922100.qcom,hdmi_tx"),
@@ -5530,7 +5534,8 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("",		byte_clk_src_8974.c,               ""),
 };
 
-/* this table should be used just for cancro x5 */
+/* XIAOMI START
+This table should be used just for cancro x5 */
 static struct clk_lookup msm_clocks_8974_sensorhub_i2c[] __initdata = {
 	/* Activate I2C for Sensor Hub */
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9968000.i2c"),
@@ -5538,11 +5543,12 @@ static struct clk_lookup msm_clocks_8974_sensorhub_i2c[] __initdata = {
 	CLK_LOOKUP("iface_clk", gcc_blsp1_ahb_clk.c, "f9925000.i2c"),
 	CLK_LOOKUP("core_clk", gcc_blsp1_qup3_i2c_apps_clk.c, "f9925000.i2c"),
 };
+//XIAOMI END
 
 static struct clk_lookup msm_clocks_8974[ARRAY_SIZE(msm_clocks_8974_common)
 	+ ARRAY_SIZE(msm_clocks_8974_only)
 	+ ARRAY_SIZE(msm_clocks_8974pro_only)
-	+ ARRAY_SIZE(msm_clocks_8974_sensorhub_i2c)];
+	+ ARRAY_SIZE(msm_clocks_8974_sensorhub_i2c)]; //XIAOMI
 
 static struct pll_config_regs mmpll0_regs __initdata = {
 	.l_reg = (void __iomem *)MMPLL0_L_REG,
@@ -5910,7 +5916,8 @@ static void __init msm8974_clock_pre_init(void)
 		       sizeof(msm_clocks_8974pro_only));
 		msm8974_clock_init_data.size +=
 			ARRAY_SIZE(msm_clocks_8974pro_only);
-	}
+//XIAOMI START
+        }
 
 	if (get_hw_version_major() == 5) {
 		memcpy(msm_clocks_8974 + msm8974_clock_init_data.size,
@@ -5918,6 +5925,7 @@ static void __init msm8974_clock_pre_init(void)
 		       sizeof(msm_clocks_8974_sensorhub_i2c));
 		msm8974_clock_init_data.size +=
 			ARRAY_SIZE(msm_clocks_8974_sensorhub_i2c);
+//XIAOMI END
 	}
 
 	clk_ops_pixel_clock = clk_ops_pixel;
