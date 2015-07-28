@@ -260,7 +260,6 @@ static struct wcnss_pmic_dump wcnss_pmic_reg_dump[] = {
 	{"LVS1", 0x060},
 };
 
-<<<<<<< HEAD
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle);
 
@@ -268,13 +267,10 @@ static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
 
-#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
-=======
 #define NVBIN_FILE_X3    "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define NVBIN_FILE_X4    "wlan/prima/WCNSS_qcom_wlan_nv_x4.bin"
 #define NVBIN_FILE_X4LTE "wlan/prima/WCNSS_qcom_wlan_nv_x4lte.bin"
 #define NVBIN_FILE_X5    "wlan/prima/WCNSS_qcom_wlan_nv_x5.bin"
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 /*
  * On SMD channel 4K of maximum data can be transferred, including message
@@ -2004,13 +2000,13 @@ static void wcnss_send_pm_config(struct work_struct *worker)
 		return;
 	}
 
-	pr_debug("%s:size=%d: <%d, %d, %d, %d, %d %d>\n", __func__,
+	pr_debug("%s:size=%d: <%d, %d, %d, %d, %d>\n", __func__,
 			prop_len, *payload, *(payload+1), *(payload+2),
-			*(payload+3), *(payload+4), *(payload+5));
+			*(payload+3), *(payload+4));
 
 	hdr = (struct smd_msg_hdr *)msg;
 	hdr->msg_type = WCNSS_PM_CONFIG_REQ;
-	hdr->msg_len = sizeof(struct smd_msg_hdr) + (prop_len * sizeof(int));
+	hdr->msg_len = sizeof(struct smd_msg_hdr) + prop_len;
 
 	rc = wcnss_smd_tx(msg, hdr->msg_len);
 	if (rc < 0)
@@ -2064,13 +2060,8 @@ static void wcnss_nvbin_dnld(void)
 	ret = request_firmware(&nv, xiaomi_wlan_nv_file, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
-<<<<<<< HEAD
 		pr_err("wcnss: %s: request_firmware failed for %s(ret = %d)\n",
-			__func__, NVBIN_FILE, ret);
-=======
-		pr_err("wcnss: %s: request_firmware failed for %s\n",
-			__func__, xiaomi_wlan_nv_file);
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
+			__func__, xiaomi_wlan_nv_file, ret);
 		goto out;
 	}
 
