@@ -86,12 +86,6 @@ enum dsi_panel_bl_ctrl {
 	UNKNOWN_CTRL,
 };
 
-enum dsi_panel_status_mode {
-	ESD_BTA,
-	ESD_REG,
-	ESD_MAX,
-};
-
 enum dsi_ctrl_op_mode {
 	DSI_LP_MODE,
 	DSI_HS_MODE,
@@ -158,8 +152,8 @@ enum dsi_lane_map_type {
 #define DSI_CMD_TERM    BIT(0)
 
 extern struct device dsi_dev;
+extern int mdss_dsi_clk_on;
 extern u32 dsi_irq;
-extern struct mdss_dsi_ctrl_pdata *ctrl_list[];
 
 struct dsiphy_pll_divider_config {
 	u32 clk_rate;
@@ -232,18 +226,11 @@ enum {
 	DSI_CTRL_MAX,
 };
 
-/* DSI controller #0 is always treated as a master in broadcast mode */
-#define DSI_CTRL_MASTER		DSI_CTRL_0
-#define DSI_CTRL_SLAVE		DSI_CTRL_1
-
-#define DSI_BUS_CLKS	BIT(0)
-#define DSI_LINK_CLKS	BIT(1)
-#define DSI_ALL_CLKS	((DSI_BUS_CLKS) | (DSI_LINK_CLKS))
-
 #define DSI_EV_PLL_UNLOCKED		0x0001
 #define DSI_EV_MDP_FIFO_UNDERFLOW	0x0002
-#define DSI_EV_DSI_FIFO_EMPTY		0x0003
 #define DSI_EV_MDP_BUSY_RELEASE		0x80000000
+
+#define DSI_FLAG_CLOCK_MASTER		0x80000000
 
 struct mdss_dsi_ctrl_pdata {
 	int ndx;	/* panel_num */
@@ -253,20 +240,15 @@ struct mdss_dsi_ctrl_pdata {
 	int (*dispparam_fnc) (struct mdss_panel_data *pdata);
 	int (*check_status) (struct mdss_dsi_ctrl_pdata *pdata);
 	int (*cmdlist_commit)(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
-	void (*switch_mode) (struct mdss_panel_data *pdata, int mode);
 	struct mdss_panel_data panel_data;
 	unsigned char *ctrl_base;
-	struct dss_io_data ctrl_io;
-	struct dss_io_data mmss_misc_io;
-	struct dss_io_data phy_io;
 	int reg_size;
-	u32 bus_clk_cnt;
-	u32 link_clk_cnt;
+	u32 clk_cnt;
+	int clk_cnt_sub;
 	u32 flags;
 	struct clk *mdp_core_clk;
 	struct clk *ahb_clk;
 	struct clk *axi_clk;
-	struct clk *mmss_misc_ahb_clk;
 	struct clk *byte_clk;
 	struct clk *esc_clk;
 	struct clk *pixel_clk;
@@ -275,6 +257,7 @@ struct mdss_dsi_ctrl_pdata {
 	bool panel_incell;
 	int panel_sleepwrmod;
 	int irq_cnt;
+	int mdss_dsi_clk_on;
 	int rst_gpio;
 	int disp_en_gpio;
 	int disp_te_gpio;
@@ -292,11 +275,7 @@ struct mdss_dsi_ctrl_pdata {
 	int bklt_max;
 	int new_fps;
 	int pwm_enabled;
-<<<<<<< HEAD
-	bool dmap_iommu_map;
-=======
 	int on_cmds_tuning;
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 	struct pwm_device *pwm_bl;
 	struct dsi_drv_cm_data shared_pdata;
 	u32 pclk_rate;
@@ -308,13 +287,6 @@ struct mdss_dsi_ctrl_pdata {
 
 	struct dsi_panel_cmds on_cmds;
 	struct dsi_panel_cmds off_cmds;
-<<<<<<< HEAD
-	struct dsi_panel_cmds status_cmds;
-	u32 status_value;
-
-	struct dsi_panel_cmds video2cmd;
-	struct dsi_panel_cmds cmd2video;
-=======
 	struct dsi_panel_cmds dispparam_cmds;
 	struct dsi_panel_cmds dispparam_cabcon_cmds;
 	struct dsi_panel_cmds dispparam_cabcguion_cmds;
@@ -357,7 +329,6 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_panel_cmds dispparam_level4_cmds;
 	struct dsi_panel_cmds dispparam_level5_cmds;
 	struct dsi_panel_cmds dispparam_level6_cmds;
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	struct dcs_cmd_list cmdlist;
 	struct completion dma_comp;
@@ -370,16 +341,10 @@ struct mdss_dsi_ctrl_pdata {
 	struct mutex mutex;
 	struct mutex cmd_mutex;
 
-<<<<<<< HEAD
-	bool ulps;
-=======
 	bool dsi_pipe_ready;
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 
 	struct dsi_buf tx_buf;
 	struct dsi_buf rx_buf;
-	struct dsi_buf status_buf;
-	int status_mode;
 };
 
 struct dsi_status_data {
@@ -397,7 +362,8 @@ int mdss_dsi_cmds_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 int mdss_dsi_cmds_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_cmd_desc *cmds, int rlen);
 
-void mdss_dsi_host_init(struct mdss_panel_data *pdata);
+void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
+				struct mdss_panel_data *pdata);
 void mdss_dsi_op_mode_config(int mode,
 				struct mdss_panel_data *pdata);
 void mdss_dsi_cmd_mode_ctrl(int enable);
@@ -405,18 +371,24 @@ void mdp4_dsi_cmd_trigger(void);
 void mdss_dsi_cmd_mdp_start(struct mdss_dsi_ctrl_pdata *ctrl);
 void mdss_dsi_cmd_bta_sw_trigger(struct mdss_panel_data *pdata);
 void mdss_dsi_ack_err_status(struct mdss_dsi_ctrl_pdata *ctrl);
-int mdss_dsi_clk_ctrl(struct mdss_dsi_ctrl_pdata *ctrl,
-	u8 clk_type, int enable);
+void mdss_dsi_clk_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, int enable);
+int mdss_dsi_link_clk_start(struct mdss_dsi_ctrl_pdata *ctrl);
+void mdss_dsi_link_clk_stop(struct mdss_dsi_ctrl_pdata *ctrl);
+int mdss_dsi_bus_clk_start(struct mdss_dsi_ctrl_pdata *ctrl);
+void mdss_dsi_bus_clk_stop(struct mdss_dsi_ctrl_pdata *ctrl);
 void mdss_dsi_clk_req(struct mdss_dsi_ctrl_pdata *ctrl,
 				int enable);
 void mdss_dsi_controller_cfg(int enable,
 				struct mdss_panel_data *pdata);
 void mdss_dsi_sw_reset(struct mdss_panel_data *pdata);
 
+struct mdss_dsi_ctrl_pdata *mdss_dsi_ctrl_slave(
+				struct mdss_dsi_ctrl_pdata *ctrl);
+
 irqreturn_t mdss_dsi_isr(int irq, void *ptr);
 void mdss_dsi_irq_handler_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 
-void mdss_dsi_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
+void mipi_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
 int mdss_dsi_clk_div_config(struct mdss_panel_info *panel_info,
 			    int frame_rate);
 int mdss_dsi_clk_init(struct platform_device *pdev,
@@ -439,58 +411,12 @@ void mdss_dsi_wait4video_done(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
 void mdss_dsi_cmdlist_kickoff(int intf);
 int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
-int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
-bool __mdss_dsi_clk_enabled(struct mdss_dsi_ctrl_pdata *ctrl, u8 clk_type);
 
 int mdss_dsi_panel_init(struct device_node *node,
 		struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		bool cmd_cfg_cont_splash);
-int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
-				char *dst_format);
 
 int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct mdss_panel_recovery *recovery);
 
-static inline bool mdss_dsi_broadcast_mode_enabled(void)
-{
-	return ctrl_list[DSI_CTRL_MASTER]->shared_pdata.broadcast_enable &&
-		ctrl_list[DSI_CTRL_SLAVE] &&
-		ctrl_list[DSI_CTRL_SLAVE]->shared_pdata.broadcast_enable;
-}
-
-static inline struct mdss_dsi_ctrl_pdata *mdss_dsi_get_master_ctrl(void)
-{
-	if (mdss_dsi_broadcast_mode_enabled())
-		return ctrl_list[DSI_CTRL_MASTER];
-	else
-		return NULL;
-}
-
-static inline struct mdss_dsi_ctrl_pdata *mdss_dsi_get_slave_ctrl(void)
-{
-	if (mdss_dsi_broadcast_mode_enabled())
-		return ctrl_list[DSI_CTRL_SLAVE];
-	else
-		return NULL;
-}
-
-static inline bool mdss_dsi_is_master_ctrl(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	return mdss_dsi_broadcast_mode_enabled() &&
-		(ctrl->ndx == DSI_CTRL_MASTER);
-}
-
-static inline bool mdss_dsi_is_slave_ctrl(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	return mdss_dsi_broadcast_mode_enabled() &&
-		(ctrl->ndx == DSI_CTRL_SLAVE);
-}
-
-static inline struct mdss_dsi_ctrl_pdata *mdss_dsi_get_ctrl_by_index(int ndx)
-{
-	if (ndx >= DSI_CTRL_MAX)
-		return NULL;
-
-	return ctrl_list[ndx];
-}
 #endif /* MDSS_DSI_H */
