@@ -28,13 +28,6 @@
 	qcom,pad-drv-on = <0x4 0x4 0x4>; /* 10mA, 10mA, 10mA */
 };
 
-<<<<<<< HEAD
-&ehci {
-	status = "ok";
-	qcom,usb2-enable-uicc;
-	hsusb_vdd_dig-supply = <&pm8841_s2_corner>;
-	qcom,vdd-voltage-level = <1 2 3 5 7>;
-=======
 &soc {
 	i2c@f9928000 {
 		bcm2079x-i2c {
@@ -47,5 +40,4 @@
 			broadcom,wake-gpio = <&msmgpio 62 0x00>;
 		};
 	};
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 };

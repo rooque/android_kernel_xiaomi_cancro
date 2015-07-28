@@ -33,7 +33,6 @@
 
 		adsp_mem: adsp_region {
 			linux,contiguous-region;
-			linux,memory-limit = <0x0>;
 			reg = <0 0x2a00000>;
 			label = "adsp_mem";
 		};
@@ -440,20 +439,20 @@
 		qcom,tapan-codec-9302;
 	};
 
-	qti,msm-pcm {
-		compatible = "qti,msm-pcm-dsp";
-		qti,msm-pcm-dsp-id = <0>;
+	qcom,msm-pcm {
+		compatible = "qcom,msm-pcm-dsp";
+		qcom,msm-pcm-dsp-id = <0>;
 	};
 
 	qcom,msm-pcm-routing {
 		compatible = "qcom,msm-pcm-routing";
 	};
 
-	qti,msm-pcm-low-latency {
-		compatible = "qti,msm-pcm-dsp";
-		qti,msm-pcm-dsp-id = <1>;
-		qti,msm-pcm-low-latency;
-		qti,latency-level = "regular";
+	qcom,msm-pcm-low-latency {
+		compatible = "qcom,msm-pcm-dsp";
+		qcom,msm-pcm-dsp-id = <1>;
+		qcom,msm-pcm-low-latency;
+		qcom,latency-level = "regular";
 	};
 
 	qcom,msm-pcm-lpa {
@@ -497,8 +496,8 @@
 		compatible = "qcom,msm-lsm-client";
 	};
 
-	qti,msm-pcm-loopback {
-		compatible = "qti,msm-pcm-loopback";
+	qcom,msm-pcm-loopback {
+		compatible = "qcom,msm-pcm-loopback";
 	};
 
 	qcom,msm-voice-svc {
@@ -627,13 +626,6 @@
 		qcom,msm-cpudai-auxpcm-data = <0>, <0>;
 		qcom,msm-cpudai-auxpcm-pcm-clk-rate = <2048000>, <2048000>;
 		qcom,msm-auxpcm-interface = "primary";
-	};
-
-	qcom,avtimer@fe053000 {
-		compatible = "qcom,avtimer";
-		reg = <0xfe053008 0x4>,
-			<0xfe05300c 0x4>;
-		reg-names = "avtimer_lsb_addr", "avtimer_msb_addr";
 	};
 
 	qcom,wcnss-wlan@fb000000 {
@@ -1048,9 +1040,11 @@
 		cpu-vdd-supply = <&apc_vreg_corner>;
 	};
 
-	qcom,cpubw {
-		compatible = "qcom,cpubw";
-		qcom,cpu-mem-ports = <1 512>;
+	cpubw: qcom,cpubw {
+		compatible = "qcom,devbw";
+		governor = "cpufreq";
+		qcom,src-dst-ports = <1 512>;
+		qcom,active-only;
 		qcom,bw-tbl =
 			< 1525 /* 200 MHz */ >,
 			< 2441 /* 320 MHz */ >,
@@ -1058,24 +1052,33 @@
 			< 4066 /* 533 MHz */ >;
 	};
 
+	devfreq-cpufreq {
+		cpubw-cpufreq {
+			target-dev = <&cpubw>;
+			cpu-to-dev-map =
+				<  787200 1525 >,
+				< 1785600 4066 >;
+		};
+	};
+
 	qcom,msm-cpufreq@0 {
 		reg = <0 4>;
 		compatible = "qcom,msm-cpufreq";
 		qcom,cpufreq-table =
-			<  300000 1525 >,
-			<  384000 1525 >,
-			<  600000 1525 >,
-			<  787200 1525 >,
-			<  998400 4066 >,
-			< 1094400 4066 >,
-			< 1190400 4066 >,
-			< 1305600 4066 >,
-			< 1344000 4066 >,
-			< 1401600 4066 >,
-			< 1497600 4066 >,
-			< 1593600 4066 >,
-			< 1689600 4066 >,
-			< 1785600 4066 >;
+			<  300000 >,
+			<  384000 >,
+			<  600000 >,
+			<  787200 >,
+			<  998400 >,
+			< 1094400 >,
+			< 1190400 >,
+			< 1305600 >,
+			< 1344000 >,
+			< 1401600 >,
+			< 1497600 >,
+			< 1593600 >,
+			< 1689600 >,
+			< 1785600 >;
 	};
 
 	qcom,ocmem@fdd00000 {
@@ -1390,12 +1393,6 @@
 		compatible = "arm,cortex-a7-pmu";
 		qcom,irq-is-percpu;
 		interrupts = <1 7 0xf00>;
-	};
-
-	bimc_sharedmem {
-		compatible = "qcom,sharedmem-uio";
-		reg = <0xfc380000 0x00100000>;
-		reg-names = "bimc";
 	};
 };
 

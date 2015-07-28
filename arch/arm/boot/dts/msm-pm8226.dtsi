@@ -43,11 +43,7 @@
 
 			qcom,pon_1 {
 				qcom,pon-type = <0>;
-				qcom,support-reset = <1>;
 				qcom,pull-up = <1>;
-				qcom,s1-timer = <10256>;
-				qcom,s2-timer = <2000>;
-				qcom,s2-type = <1>;
 				linux,code = <116>;
 			};
 
@@ -94,8 +90,6 @@
 			qcom,cool-bat-decidegc = <100>;
 			qcom,cool-bat-mv = <4100>;
 			qcom,ibatmax-cool-ma = <350>;
-			qcom,chg-iadc = <&pm8226_iadc>;
-			qcom,ibat-calibration-enabled;
 
 			pm8226_chg_chgr: qcom,chgr@1000 {
 				status = "disabled";
@@ -434,19 +428,27 @@
 			qcom,adc-vdd-reference = <1800>;
 			qcom,iadc-vadc = <&pm8226_vadc>;
 			qcom,iadc-poll-eoc;
-			qcom,use-default-rds-trim = <2>;
+			qcom,use-default-rds-trim = <0>;
 			qcom,pmic-revid = <&pm8226_revid>;
 
 			chan@0 {
 				label = "internal_rsense";
 				reg = <0>;
 				qcom,decimation = <0>;
+				qcom,pre-div-channel-scaling = <1>;
+				qcom,calibration-type = "absolute";
+				qcom,scale-function = <0>;
+				qcom,hw-settle-time = <0>;
 				qcom,fast-avg-setup = <0>;
 			};
 			chan@1 {
 				label = "external_rsense";
 				reg = <1>;
 				qcom,decimation = <0>;
+				qcom,pre-div-channel-scaling = <1>;
+				qcom,calibration-type = "absolute";
+				qcom,scale-function = <0>;
+				qcom,hw-settle-time = <0>;
 				qcom,fast-avg-setup = <0>;
 			};
 		};
