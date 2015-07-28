@@ -101,8 +101,6 @@ config MSM_ISPIF_V1
           of any CID of MSM_CSI22_HEADER can be routed to of pixel
           or raw data interface in VFE.
 
-<<<<<<< HEAD
-=======
 config S5K3L1YX
 	bool "Sensor S5K3L1YX (BAYER 12M)"
 	depends on MSMB_CAMERA
@@ -153,7 +151,6 @@ config IMX132
 		SONY 2 MP Bayer Sensor, supports 2 mipi lanes.
 		This sensor driver does not support auto focus.
 
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA
@@ -163,8 +160,6 @@ config IMX134
 		HFR @60fps and @120fps
 		Video HDR support.
 
-<<<<<<< HEAD
-=======
 config OV2720
 	bool "Sensor OV2720 (BAYER 2M)"
 	depends on MSMB_CAMERA
@@ -183,7 +178,6 @@ config OV4688
 		hfr video at 60, 90 and 120 fps. This sensor driver does
 		not support auto focus.
 
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 config OV9724
 	bool "Sensor OV9724 (BAYER 2M)"
 	depends on MSMB_CAMERA
