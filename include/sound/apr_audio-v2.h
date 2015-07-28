@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
-=======
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
 * Copyright (C) 2015 XiaoMi, Inc.
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License version 2 and
@@ -584,15 +580,6 @@ struct adm_cmd_matrix_mute_v5 {
 	/* Clients must set this field to zero.*/
 } __packed;
 
-#define ASM_PARAM_ID_AAC_STEREO_MIX_COEFF_SELECTION_FLAG_V2 (0x00010DD8)
-
-struct asm_aac_stereo_mix_coeff_selection_param_v2 {
-	struct apr_hdr          hdr;
-	u32                     param_id;
-	u32                     param_size;
-	u32                     aac_stereo_mix_coeff_flag;
-} __packed;
-
 /* Allows a client to connect the desired stream to
  * the desired AFE port through the stream router
  *
@@ -771,6 +758,7 @@ struct adm_cmd_connect_afe_port_v5 {
 #define AFE_PORT_ID_SECONDARY_PCM_RX        0x100C
 #define AFE_PORT_ID_SECONDARY_PCM_TX        0x100D
 #define AFE_PORT_ID_MULTICHAN_HDMI_RX       0x100E
+#define AFE_PORT_ID_SECONDARY_MI2S_RX_VIBRA	0x1010
 #define  AFE_PORT_ID_RT_PROXY_PORT_001_RX   0x2000
 #define  AFE_PORT_ID_RT_PROXY_PORT_001_TX   0x2001
 #define AFE_PORT_ID_INTERNAL_BT_SCO_RX      0x3000
@@ -6720,6 +6708,7 @@ struct srs_trumedia_params {
 #define LSM_SESSION_CMD_STOP				(0x00012A87)
 
 #define LSM_SESSION_EVENT_DETECTION_STATUS		(0x00012B00)
+#define LSM_SESSION_EVENT_DETECTION_STATUS_V2		(0x00012B01)
 
 #define LSM_MODULE_ID_VOICE_WAKEUP			(0x00012C00)
 #define LSM_PARAM_ID_ENDPOINT_DETECT_THRESHOLD		(0x00012C01)
@@ -6729,7 +6718,7 @@ struct srs_trumedia_params {
 #define LSM_PARAM_ID_KEYWORD_DETECT_SENSITIVITY		(0x00012C05)
 #define LSM_PARAM_ID_USER_DETECT_SENSITIVITY		(0x00012C06)
 #define LSM_PARAM_ID_FEATURE_COMPENSATION_DATA		(0x00012C07)
-
+#define LSM_PARAM_ID_MIN_CONFIDENCE_LEVELS		(0x00012C07)
 
 /* HW MAD specific */
 #define AFE_MODULE_HW_MAD				(0x00010230)
@@ -6889,7 +6878,6 @@ struct afe_param_id_clip_bank_sel {
 #define Q6AFE_LPASS_IBIT_CLK_1_P024_MHZ		 0xFA000
 #define Q6AFE_LPASS_IBIT_CLK_768_KHZ		 0xBB800
 #define Q6AFE_LPASS_IBIT_CLK_512_KHZ		 0x7D000
-#define Q6AFE_LPASS_IBIT_CLK_256_KHZ		 0x3E800
 #define Q6AFE_LPASS_IBIT_CLK_DISABLE		     0x0
 
 /* Supported LPASS CLK sources */
@@ -7191,8 +7179,6 @@ struct afe_svc_cmd_set_clip_bank_selection {
 #define US_RAW_SYNC_FORMAT      0x0001272F
 #define US_GES_SYNC_FORMAT      0x00012730
 
-<<<<<<< HEAD
-=======
 #define AFE_MODULE_GROUP_DEVICE	0x00010254
 #define AFE_PARAM_ID_GROUP_DEVICE_CFG	0x00010255
 #define AFE_PARAM_ID_GROUP_DEVICE_ENABLE 0x00010256
@@ -7260,5 +7246,4 @@ struct opalum_temp_calib_data_t {
 	int			count;
 };
 
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
 #endif /*_APR_AUDIO_V2_H_ */

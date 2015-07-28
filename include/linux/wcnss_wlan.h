@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 /* Copyright (c) 2011-2013,2015 The Linux Foundation. All rights reserved.
-=======
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 XiaoMi, Inc.
->>>>>>> 6da72f6... Xiaomi kernel Source for MI 3W, MI 3C, MI 4 series, MI NOTE
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
