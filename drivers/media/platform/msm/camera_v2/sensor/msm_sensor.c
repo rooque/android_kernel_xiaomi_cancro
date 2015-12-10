@@ -1116,7 +1116,6 @@ static struct msm_sensor_fn_t msm_sensor_func_tbl = {
 	.sensor_config = msm_sensor_config,
 	.sensor_power_up = msm_sensor_power_up,
 	.sensor_power_down = msm_sensor_power_down,
-	.sensor_match_id = msm_sensor_match_id,
 };
 
 static struct msm_camera_i2c_fn_t msm_sensor_cci_func_tbl = {

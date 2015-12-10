@@ -1220,7 +1220,7 @@ static int __devinit msm_cci_probe(struct platform_device *pdev)
 	msm_cci_init_cci_params(new_cci_dev);
 	msm_cci_init_clk_params(new_cci_dev);
 	msm_cci_init_gpio_params(new_cci_dev);
-	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	rc = of_platform_bus_probe(pdev->dev.of_node, msm_sensor_dt_match, &pdev->dev);
 	if (rc)
 		pr_err("%s: failed to add child nodes, rc=%d\n", __func__, rc);
 	new_cci_dev->cci_state = CCI_STATE_DISABLED;

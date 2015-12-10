@@ -29,7 +29,6 @@ static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
 #define MSM_ISP_MIN_IB 450000000
 
 #define VFE40_8974V2_VERSION 0x1001001A
-
 static struct msm_bus_vectors msm_isp_init_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
