@@ -442,6 +442,10 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 				ps[i].seq_val = SENSOR_GPIO_RESET;
 			else if (!strcmp(seq_name, "sensor_gpio_standby"))
 				ps[i].seq_val = SENSOR_GPIO_STANDBY;
+			else if (!strcmp(seq_name, "sensor_gpio_img_en"))
+				ps[i].seq_val = SENSOR_GPIO_IMG_EN;
+			else if (!strcmp(seq_name, "sensor_gpio_af_pwdm"))
+				ps[i].seq_val = SENSOR_GPIO_AF_PWDM;
 			else if (!strcmp(seq_name, "sensor_gpio_vdig"))
 				ps[i].seq_val = SENSOR_GPIO_VDIG;
 			else

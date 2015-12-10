@@ -256,7 +256,6 @@ static void msm_vfe32_process_violation_status(struct vfe_device *vfe_dev)
 static void msm_vfe32_process_error_status(struct vfe_device *vfe_dev)
 {
 	uint32_t error_status1 = vfe_dev->error_info.error_mask1;
-
 	if (error_status1 & BIT(0))
 		pr_err("%s: camif error status: 0x%x\n",
 			__func__, vfe_dev->error_info.camif_status);

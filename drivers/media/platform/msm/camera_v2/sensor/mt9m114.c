@@ -1504,7 +1504,6 @@ static struct msm_sensor_fn_t mt9m114_sensor_func_tbl = {
 	.sensor_config = mt9m114_sensor_config,
 	.sensor_power_up = msm_sensor_power_up,
 	.sensor_power_down = msm_sensor_power_down,
-	.sensor_match_id = msm_sensor_match_id,
 };
 
 static struct msm_sensor_ctrl_t mt9m114_s_ctrl = {
